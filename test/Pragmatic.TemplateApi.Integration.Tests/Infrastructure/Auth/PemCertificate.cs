@@ -3,7 +3,7 @@ using System.Security.Cryptography.X509Certificates;
 using Microsoft.IdentityModel.Tokens;
 using Newtonsoft.Json;
 
-namespace Pragmatic.TemplateApi.IntegrationTests.Infrastructure.Auth;
+namespace Pragmatic.TemplateApi.Integration.Tests.Infrastructure.Auth;
 
 public sealed record PemCertificate(string Certificate, string PrivateKey, string PublicKey)
 {
@@ -18,7 +18,7 @@ public sealed record PemCertificate(string Certificate, string PrivateKey, strin
 
         var keyParameters = certificate.PublicKey.GetRSAPublicKey()?.ExportParameters(false);
         if (!keyParameters.HasValue)
-            throw new ArgumentNullException(nameof(keyParameters));
+            ArgumentNullException.ThrowIfNull(keyParameters);
 
         var e = Base64UrlEncoder.Encode(keyParameters.Value.Exponent);
         var n = Base64UrlEncoder.Encode(keyParameters.Value.Modulus);
@@ -28,9 +28,8 @@ public sealed record PemCertificate(string Certificate, string PrivateKey, strin
             { "kty", "RSA" },
             { "n", n },
         };
-        var hash = SHA256.Create();
         byte[] hashBytes =
-            hash.ComputeHash(System.Text.Encoding.ASCII.GetBytes(JsonConvert.SerializeObject(dict)));
+            SHA256.HashData(System.Text.Encoding.ASCII.GetBytes(JsonConvert.SerializeObject(dict)));
         JsonWebKey jsonWebKey = new JsonWebKey()
         {
             Kid = Base64UrlEncoder.Encode(hashBytes),
@@ -75,7 +74,8 @@ public sealed record PemCertificate(string Certificate, string PrivateKey, strin
             char[] certificatePem = PemEncoding.Write("CERTIFICATE", certificateBytes);
 
             AsymmetricAlgorithm? key = cert.GetRSAPrivateKey();
-            if (key == null) throw new ArgumentNullException(nameof(key));
+            if (key == null)
+                ArgumentNullException.ThrowIfNull(key);
 
             byte[] pubKeyBytes = key.ExportSubjectPublicKeyInfo();
             byte[] privKeyBytes = key.ExportPkcs8PrivateKey();

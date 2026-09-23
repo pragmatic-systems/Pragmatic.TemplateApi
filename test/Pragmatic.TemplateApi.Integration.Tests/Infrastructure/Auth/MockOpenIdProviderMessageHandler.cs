@@ -2,7 +2,7 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 
-namespace Pragmatic.TemplateApi.IntegrationTests.Infrastructure.Auth;
+namespace Pragmatic.TemplateApi.Integration.Tests.Infrastructure.Auth;
 
 public sealed class MockOpenIdProviderMessageHandler : HttpMessageHandler
 {

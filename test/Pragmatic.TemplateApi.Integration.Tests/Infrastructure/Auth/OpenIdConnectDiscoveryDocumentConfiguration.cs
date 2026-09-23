@@ -1,6 +1,6 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace Pragmatic.TemplateApi.IntegrationTests.Infrastructure.Auth;
+namespace Pragmatic.TemplateApi.Integration.Tests.Infrastructure.Auth;
 
 public record OpenIdConnectDiscoveryDocumentConfiguration(
     [property: JsonPropertyName("issuer")] string Issuer,

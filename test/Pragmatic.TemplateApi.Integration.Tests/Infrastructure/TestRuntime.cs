@@ -6,12 +6,12 @@ using Microsoft.Extensions.Configuration.Memory;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Protocols;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
-using Pragmatic.TemplateApi.IntegrationTests.Infrastructure.Auth;
+using Pragmatic.TemplateApi.Integration.Tests.Infrastructure.Auth;
 using Testcontainers.Azurite;
 using Testcontainers.PostgreSql;
 using WireMock.Net.Testcontainers;
 
-namespace Pragmatic.TemplateApi.IntegrationTests.Infrastructure;
+namespace Pragmatic.TemplateApi.Integration.Tests.Infrastructure;
 
 public class TestRuntime : IAsyncDisposable
 {
@@ -21,16 +21,16 @@ public class TestRuntime : IAsyncDisposable
 
     public AzuriteContainer? AzuriteContainer { get; private set; }
 
-    public WebApplicationFactory<Pragmatic.TemplateApi.Api.Program>? SubjectApi { get; private set; }
+    public WebApplicationFactory<Api.Program>? SubjectApi { get; private set; }
 
-    public WebApplicationFactory<Pragmatic.TemplateApi.Worker.Program>? SubjectWorker { get; private set; }
+    public WebApplicationFactory<Worker.Program>? SubjectWorker { get; private set; }
 
     /// <summary>
     /// Certificate used for signing the JWT used by the API.
     /// </summary>
     public PemCertificate? SigningCertificate { get; private set; }
 
-    public string JwtIssuer { get; private set; }
+    public string? JwtIssuer { get; private set; }
 
     public WebApplicationFactory<Api.Program> GetSubjectApi()
         => SubjectApi ?? throw new InvalidOperationException(
@@ -80,7 +80,8 @@ public class TestRuntime : IAsyncDisposable
         SigningCertificate = PemCertificate.Create();
 
         // Get JWT Issuer
-        JwtIssuer = wireMockContainer.GetPublicUrl().TrimEnd('/');
+        var jwtIssuer = wireMockContainer.GetPublicUrl().TrimEnd('/');
+        JwtIssuer = jwtIssuer;
 
         SubjectApi = ConfigureSubjectApi(postgresContainer, azuriteContainer);
         SubjectWorker = ConfigureSubjectWorker(postgresContainer, azuriteContainer);
@@ -88,7 +89,7 @@ public class TestRuntime : IAsyncDisposable
         SubjectWorker.CreateClient();
 
         var wiremockAdmin = new WiremockConfigurationClient(WireMockContainer.CreateWireMockAdminClient());
-        await wiremockAdmin.ConfigureOIDCWellKnown(JwtIssuer);
+        await wiremockAdmin.ConfigureOIDCWellKnown(jwtIssuer);
     }
 
     private WebApplicationFactory<Api.Program> ConfigureSubjectApi(PostgreSqlContainer postgresContainer, AzuriteContainer azuriteContainer)

@@ -1,9 +1,9 @@
 ﻿using System.Text.Json;
-using Pragmatic.TemplateApi.IntegrationTests.Infrastructure.Auth;
+using Pragmatic.TemplateApi.Integration.Tests.Infrastructure.Auth;
 using WireMock.Admin.Mappings;
 using WireMock.Client;
 
-namespace Pragmatic.TemplateApi.IntegrationTests.Infrastructure;
+namespace Pragmatic.TemplateApi.Integration.Tests.Infrastructure;
 
 /// <summary>
 /// Wrapper for configuring Wiremock endpoints.

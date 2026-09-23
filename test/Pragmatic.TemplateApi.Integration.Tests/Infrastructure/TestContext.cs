@@ -8,9 +8,9 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Polly;
 using Pragmatic.TemplateApi.Api.Auth;
 using Pragmatic.TemplateApi.Database.Model;
-using Pragmatic.TemplateApi.IntegrationTests.Infrastructure.Auth;
+using Pragmatic.TemplateApi.Integration.Tests.Infrastructure.Auth;
 
-namespace Pragmatic.TemplateApi.IntegrationTests.Infrastructure;
+namespace Pragmatic.TemplateApi.Integration.Tests.Infrastructure;
 
 public class TestContext
 {
@@ -18,7 +18,6 @@ public class TestContext
 
     public TestContext(TestRuntime testRuntime)
     {
-        SigningCertificate = testRuntime.SigningCertificate;
         _testRuntime = testRuntime;
     }
 
@@ -37,8 +36,6 @@ public class TestContext
     public AsyncPolicy RetryPolicy { get; } = Policy
         .Handle<HttpRequestException>()
         .WaitAndRetryAsync(10, i => TimeSpan.FromSeconds(1));
-
-    public PemCertificate? SigningCertificate { get; internal set; }
 
     public TestUser? CurrentUser { get; private set; }
 
@@ -83,7 +80,7 @@ public class TestContext
     {
         var user = Users[userName];
         CurrentUser = user;
-        CurrentUser.BuildJwt(SigningCertificate, _testRuntime.JwtIssuer);
+        CurrentUser.BuildJwt(_testRuntime.SigningCertificate, _testRuntime.JwtIssuer);
     }
 
     public void ClearCurrentUser()
