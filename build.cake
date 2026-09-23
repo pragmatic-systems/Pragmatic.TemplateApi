@@ -2,7 +2,7 @@
 // ADDINS
 ///////////////////////////////////////////////////////////////////////////////
 
-#addin nuget:?package=Pragmatic.CakeCI&version=1.0.0
+#addin nuget:?package=Pragmatic.CakeCI&version=1.0.1
 
 ///////////////////////////////////////////////////////////////////////////////
 // ARGUMENTS
@@ -32,7 +32,12 @@ var sonarArgs = new SonarArgs
     ProjectKey = CiArgument("SonarProjectKey"),
     ProjectName = CiArgument("SonarProjectName"),
     Branch = CiArgument("SonarBranch"),
-    HostUrl = CiArgument("SonarHostUrl", "http://localhost:9000")
+    HostUrl = CiArgument("SonarHostUrl", "http://localhost:9000"),
+    AdditionalProperties = new Dictionary<string, string>
+    {
+        // Exclude the Scripts files from scan - We use Postgres, but sonar scans Oracle by default.
+        ["sonar.exclusions"] = "**/Scripts/*.sql"
+    }
 };
 
 // Artifact Folders
