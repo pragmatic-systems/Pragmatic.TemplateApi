@@ -49,6 +49,8 @@ public class TestRuntime : IAsyncDisposable
 
         if (SubjectWorker != null)
             await SubjectWorker.DisposeAsync();
+
+        GC.SuppressFinalize(this);
     }
 
     public async Task InitializeAsync()
