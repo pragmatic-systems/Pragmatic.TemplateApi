@@ -1,7 +1,7 @@
 ﻿using System.Security.Claims;
-using Pragmatic.TemplateApi.IntegrationTests.Infrastructure.Auth;
+using Pragmatic.TemplateApi.Integration.Tests.Infrastructure.Auth;
 
-namespace Pragmatic.TemplateApi.IntegrationTests.Infrastructure;
+namespace Pragmatic.TemplateApi.Integration.Tests.Infrastructure;
 
 public class TestUser
 {

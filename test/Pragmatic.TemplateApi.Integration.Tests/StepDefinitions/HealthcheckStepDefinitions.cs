@@ -1,7 +1,7 @@
-﻿using Pragmatic.TemplateApi.IntegrationTests.Infrastructure;
+﻿using Pragmatic.TemplateApi.Integration.Tests.Infrastructure;
 using Reqnroll;
 
-namespace Pragmatic.TemplateApi.IntegrationTests.StepDefinitions;
+namespace Pragmatic.TemplateApi.Integration.Tests.StepDefinitions;
 
 [Binding]
 public sealed class HealthcheckStepDefinitions

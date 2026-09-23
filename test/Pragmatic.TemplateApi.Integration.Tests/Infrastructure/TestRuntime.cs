@@ -6,12 +6,12 @@ using Microsoft.Extensions.Configuration.Memory;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Protocols;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
-using Pragmatic.TemplateApi.IntegrationTests.Infrastructure.Auth;
+using Pragmatic.TemplateApi.Integration.Tests.Infrastructure.Auth;
 using Testcontainers.Azurite;
 using Testcontainers.PostgreSql;
 using WireMock.Net.Testcontainers;
 
-namespace Pragmatic.TemplateApi.IntegrationTests.Infrastructure;
+namespace Pragmatic.TemplateApi.Integration.Tests.Infrastructure;
 
 public class TestRuntime : IAsyncDisposable
 {
@@ -21,16 +21,28 @@ public class TestRuntime : IAsyncDisposable
 
     public AzuriteContainer? AzuriteContainer { get; private set; }
 
-    public WebApplicationFactory<Pragmatic.TemplateApi.Api.Program>? SubjectApi { get; private set; }
+    public WebApplicationFactory<Api.Program>? SubjectApi { get; private set; }
 
-    public WebApplicationFactory<Pragmatic.TemplateApi.Worker.Program>? SubjectWorker { get; private set; }
+    public WebApplicationFactory<Worker.Program>? SubjectWorker { get; private set; }
 
     /// <summary>
     /// Certificate used for signing the JWT used by the API.
     /// </summary>
     public PemCertificate? SigningCertificate { get; private set; }
 
-    public string JwtIssuer { get; private set; }
+    public string? JwtIssuer { get; private set; }
+
+    public WebApplicationFactory<Api.Program> GetSubjectApi()
+        => SubjectApi ?? throw new InvalidOperationException(
+            "TestRuntime has not been initialized. Call InitializeAsync() before using the subject API.");
+
+    public string GetJwtIssuer()
+    => JwtIssuer ?? throw new InvalidOperationException(
+        "TestRuntime has not been initialized. Call InitializeAsync() before getting JwtIssuer.");
+
+    public PemCertificate GetSigningCertificate()
+        => SigningCertificate ?? throw new InvalidOperationException(
+            "TestRuntime has not been initialized. Call InitializeAsync() before getting SigningCertificate.");
 
     public async ValueTask DisposeAsync()
     {
@@ -45,43 +57,52 @@ public class TestRuntime : IAsyncDisposable
 
         if (SubjectWorker != null)
             await SubjectWorker.DisposeAsync();
+
+        GC.SuppressFinalize(this);
     }
 
     public async Task InitializeAsync()
     {
         // Configure Postgres
-        PostgresContainer = new PostgreSqlBuilder()
+        var postgresContainer = new PostgreSqlBuilder("postgres:15.1")
             .WithAutoRemove(true)
             .Build();
+        PostgresContainer = postgresContainer;
 
-        WireMockContainer = new WireMockContainerBuilder()
+        // Configure Wiremock
+        var wireMockContainer = new WireMockContainerBuilder()
+            .WithImage("sheyenrath/wiremock.net-alpine:2.14.0")
             .WithAutoRemove(true)
             .Build();
+        WireMockContainer = wireMockContainer;
 
-        AzuriteContainer = new AzuriteBuilder("mcr.microsoft.com/azure-storage/azurite")
+        // Configure Azurite (Blob)
+        var azuriteContainer = new AzuriteBuilder("mcr.microsoft.com/azure-storage/azurite:3.37.0")
             .WithAutoRemove(true)
             .Build();
+        AzuriteContainer = azuriteContainer;
 
-        await PostgresContainer.StartAsync();
-        await WireMockContainer.StartAsync();
-        await AzuriteContainer.StartAsync();
+        await postgresContainer.StartAsync();
+        await wireMockContainer.StartAsync();
+        await azuriteContainer.StartAsync();
 
         // Create SSL Certificate
         SigningCertificate = PemCertificate.Create();
 
         // Get JWT Issuer
-        JwtIssuer = WireMockContainer.GetPublicUrl().TrimEnd('/');
+        var jwtIssuer = wireMockContainer.GetPublicUrl().TrimEnd('/');
+        JwtIssuer = jwtIssuer;
 
-        SubjectApi = ConfigureSubjectApi();
-        SubjectWorker = ConfigureSubjectWorker();
+        SubjectApi = ConfigureSubjectApi(postgresContainer, azuriteContainer);
+        SubjectWorker = ConfigureSubjectWorker(postgresContainer, azuriteContainer);
 
         SubjectWorker.CreateClient();
 
         var wiremockAdmin = new WiremockConfigurationClient(WireMockContainer.CreateWireMockAdminClient());
-        await wiremockAdmin.ConfigureOIDCWellKnown(JwtIssuer);
+        await wiremockAdmin.ConfigureOIDCWellKnown(jwtIssuer);
     }
 
-    private WebApplicationFactory<Api.Program> ConfigureSubjectApi()
+    private WebApplicationFactory<Api.Program> ConfigureSubjectApi(PostgreSqlContainer postgresContainer, AzuriteContainer azuriteContainer)
     {
         return new WebApplicationFactory<Api.Program>()
             .WithWebHostBuilder(builder =>
@@ -98,14 +119,14 @@ public class TestRuntime : IAsyncDisposable
                     config.InitialData = new Dictionary<string, string?>
                     {
                         // Connection Strings
-                        { "ConnectionStrings:PostgresDb", PostgresContainer.GetConnectionString() },
+                        { "ConnectionStrings:PostgresDb", postgresContainer.GetConnectionString() },
 
                         // OIDC
                         { "OpenIdConnect:Audience", TestConstants.Audience },
                         { "OpenIdConnect:Issuer", JwtIssuer },
 
                         // Azure Blob Storage
-                        { "Storage:ConnectionString", AzuriteContainer.GetConnectionString() },
+                        { "Storage:ConnectionString", azuriteContainer.GetConnectionString() },
                         { "Storage:ContainerName", "uploads" },
                     };
 
@@ -115,9 +136,9 @@ public class TestRuntime : IAsyncDisposable
                 builder.ConfigureTestServices(services =>
                 {
                     var config = MockOpenIdConfigurationManagerBuilder.Create(
-                        JwtIssuer,
+                        GetJwtIssuer(),
                         TestConstants.OpenIdConfigUrl,
-                        SigningCertificate);
+                        GetSigningCertificate());
 
                     // We are overriding the OIDC Config provider here.
                     // This supports injecting self signed JWTs.
@@ -133,7 +154,7 @@ public class TestRuntime : IAsyncDisposable
             });
     }
 
-    private WebApplicationFactory<Worker.Program> ConfigureSubjectWorker()
+    private static WebApplicationFactory<Worker.Program> ConfigureSubjectWorker(PostgreSqlContainer postgresContainer, AzuriteContainer azuriteContainer)
     {
         return new WebApplicationFactory<Worker.Program>()
             .WithWebHostBuilder(builder =>
@@ -146,8 +167,8 @@ public class TestRuntime : IAsyncDisposable
 
                     config.InitialData = new Dictionary<string, string?>
                     {
-                        { "ConnectionStrings:PostgresDb", PostgresContainer.GetConnectionString() },
-                        { "Storage:ConnectionString", AzuriteContainer.GetConnectionString() },
+                        { "ConnectionStrings:PostgresDb", postgresContainer.GetConnectionString() },
+                        { "Storage:ConnectionString", azuriteContainer.GetConnectionString() },
                         { "Storage:ContainerName", "uploads" },
                     };
 

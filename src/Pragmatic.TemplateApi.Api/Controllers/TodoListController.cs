@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading;
 using System.Threading.Tasks;
 using Azure.Storage.Blobs;
 using Hangfire;
@@ -28,18 +29,18 @@ public class TodoListController : ControllerBase
     [HttpGet("v1")]
     [Authorize(Policy = Roles.TodoListRead)]
     [EnableRateLimiting("Basic")]
-    public async Task<IActionResult> GetItems()
+    public async Task<IActionResult> GetItems(CancellationToken ct)
     {
-        var result = await _mediator.Send(new SelectTodo());
+        var result = await _mediator.Send(new SelectTodo(), ct);
         return Ok(result);
     }
 
     [HttpPost("v1")]
     [Authorize(Policy = Roles.TodoListWrite)]
     [EnableRateLimiting("Basic")]
-    public async Task<IActionResult> InsertItem(InsertTodo insert)
+    public async Task<IActionResult> InsertItem(InsertTodo insert, CancellationToken ct)
     {
-        var result = await _mediator.Send(insert);
+        var result = await _mediator.Send(insert, ct);
         return Ok(result);
     }
 

@@ -8,9 +8,9 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Polly;
 using Pragmatic.TemplateApi.Api.Auth;
 using Pragmatic.TemplateApi.Database.Model;
-using Pragmatic.TemplateApi.IntegrationTests.Infrastructure.Auth;
+using Pragmatic.TemplateApi.Integration.Tests.Infrastructure.Auth;
 
-namespace Pragmatic.TemplateApi.IntegrationTests.Infrastructure;
+namespace Pragmatic.TemplateApi.Integration.Tests.Infrastructure;
 
 public class TestContext
 {
@@ -18,11 +18,10 @@ public class TestContext
 
     public TestContext(TestRuntime testRuntime)
     {
-        SigningCertificate = testRuntime.SigningCertificate;
         _testRuntime = testRuntime;
     }
 
-    public TodoRecord NewTodoItem { get; set; }
+    public TodoRecord? NewTodoItem { get; set; }
 
     public List<TodoRecord>? TodoList { get; set; }
 
@@ -38,13 +37,11 @@ public class TestContext
         .Handle<HttpRequestException>()
         .WaitAndRetryAsync(10, i => TimeSpan.FromSeconds(1));
 
-    public PemCertificate? SigningCertificate { get; internal set; }
-
     public TestUser? CurrentUser { get; private set; }
 
     public async Task GetAsync(string path)
     {
-        using var client = _testRuntime.SubjectApi.CreateClient();
+        using var client = _testRuntime.GetSubjectApi().CreateClient();
         LastResponse = await RetryPolicy.ExecuteAsync(async () =>
         {
             if (CurrentUser != null)
@@ -57,7 +54,7 @@ public class TestContext
 
     public async Task PostAsJsonAsync<T>(string path, T payload)
     {
-        using var client = _testRuntime.SubjectApi.CreateClient();
+        using var client = _testRuntime.GetSubjectApi().CreateClient();
         LastResponse = await RetryPolicy.ExecuteAsync(async () =>
         {
             if (CurrentUser != null)
@@ -83,7 +80,7 @@ public class TestContext
     {
         var user = Users[userName];
         CurrentUser = user;
-        CurrentUser.BuildJwt(SigningCertificate, _testRuntime.JwtIssuer);
+        CurrentUser.BuildJwt(_testRuntime.GetSigningCertificate(), _testRuntime.GetJwtIssuer());
     }
 
     public void ClearCurrentUser()
@@ -95,7 +92,7 @@ public class TestContext
     {
         var noRedirectOptions = new WebApplicationFactoryClientOptions { AllowAutoRedirect = false };
 
-        using var client = _testRuntime.SubjectApi.CreateClient(noRedirectOptions);
+        using var client = _testRuntime.GetSubjectApi().CreateClient(noRedirectOptions);
         LastResponse = await RetryPolicy.ExecuteAsync(async () =>
         {
             if (CurrentUser != null)
@@ -108,7 +105,7 @@ public class TestContext
 
     public async Task GetHangfireDashboardWithCookieAsync(string cookieValue)
     {
-        using var client = _testRuntime.SubjectApi.CreateClient();
+        using var client = _testRuntime.GetSubjectApi().CreateClient();
         client.DefaultRequestHeaders.Add("Cookie", $"{HangfireCookieJwtMiddleware.CookieName}={cookieValue}");
 
         LastResponse = await RetryPolicy.ExecuteAsync(async () =>
@@ -120,7 +117,7 @@ public class TestContext
 
     public async Task PostHangfireLogoutWithCookieAsync(string cookieValue)
     {
-        using var client = _testRuntime.SubjectApi.CreateClient();
+        using var client = _testRuntime.GetSubjectApi().CreateClient();
         client.DefaultRequestHeaders.Add("Cookie", $"{HangfireCookieJwtMiddleware.CookieName}={cookieValue}");
 
         LastResponse = await RetryPolicy.ExecuteAsync(async () =>
@@ -132,7 +129,7 @@ public class TestContext
 
     public async Task UploadCsvAsync(string fileName, string content)
     {
-        using var client = _testRuntime.SubjectApi.CreateClient();
+        using var client = _testRuntime.GetSubjectApi().CreateClient();
         if (CurrentUser != null)
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", CurrentUser.UserJwt);
 

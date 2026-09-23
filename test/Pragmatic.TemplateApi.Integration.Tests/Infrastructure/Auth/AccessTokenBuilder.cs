@@ -3,7 +3,7 @@ using System.Security.Claims;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.IdentityModel.Tokens;
 
-namespace Pragmatic.TemplateApi.IntegrationTests.Infrastructure.Auth;
+namespace Pragmatic.TemplateApi.Integration.Tests.Infrastructure.Auth;
 
 public record AccessToken
 {

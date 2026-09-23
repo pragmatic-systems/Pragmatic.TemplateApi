@@ -85,7 +85,7 @@ public class CsvImportJobHandler
             records.Add(record);
         }
 
-        if (records.Any())
+        if (records.Count != 0)
         {
             _dbContext.TodoRecords.AddRange(records);
             await _dbContext.SaveChangesAsync();

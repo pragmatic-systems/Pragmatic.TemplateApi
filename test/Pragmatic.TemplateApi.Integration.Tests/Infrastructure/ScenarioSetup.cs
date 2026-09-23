@@ -1,7 +1,7 @@
 ﻿using Reqnroll;
 using Reqnroll.BoDi;
 
-namespace Pragmatic.TemplateApi.IntegrationTests.Infrastructure;
+namespace Pragmatic.TemplateApi.Integration.Tests.Infrastructure;
 
 [Binding]
 public class ScenarioSetup

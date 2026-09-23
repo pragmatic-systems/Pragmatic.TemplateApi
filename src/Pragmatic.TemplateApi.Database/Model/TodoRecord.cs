@@ -18,13 +18,13 @@ public class TodoRecord
 
     public long Version { get; set; }
 
-    public static TodoRecord Create(Guid itemId, string title, string description, DateTimeOffset dueDate, bool open = true, DateTimeOffset? closedDate = null, long version = 0)
+    public static TodoRecord Create(Guid itemId, string? title, string? description, DateTimeOffset dueDate, bool open = true, DateTimeOffset? closedDate = null, long version = 0)
     {
         return new TodoRecord
         {
             ItemId = itemId,
-            Title = title,
-            Description = description,
+            Title = title ?? string.Empty,
+            Description = description ?? string.Empty,
             DueDate = dueDate,
             Open = open,
             ClosedDate = closedDate,

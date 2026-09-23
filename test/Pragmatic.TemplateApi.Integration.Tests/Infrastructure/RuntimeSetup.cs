@@ -1,6 +1,6 @@
 ﻿using Reqnroll;
 
-namespace Pragmatic.TemplateApi.IntegrationTests.Infrastructure;
+namespace Pragmatic.TemplateApi.Integration.Tests.Infrastructure;
 
 [Binding]
 public class RuntimeSetup
