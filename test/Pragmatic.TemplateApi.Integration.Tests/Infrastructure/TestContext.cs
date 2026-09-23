@@ -22,7 +22,7 @@ public class TestContext
         _testRuntime = testRuntime;
     }
 
-    public TodoRecord NewTodoItem { get; set; }
+    public TodoRecord? NewTodoItem { get; set; }
 
     public List<TodoRecord>? TodoList { get; set; }
 

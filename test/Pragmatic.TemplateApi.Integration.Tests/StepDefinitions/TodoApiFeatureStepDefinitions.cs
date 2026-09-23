@@ -57,12 +57,12 @@ public sealed class TodoApiFeatureStepDefinitions
     public void TheResultsContainsTheCreatedItemId()
     {
         var item = _testContext.NewTodoItem;
-        var id = item.ItemId;
+        var id = item?.ItemId;
 
-        var match = _testContext.TodoList
+        var match = _testContext.TodoList?
             .SingleOrDefault(i => i.ItemId == id);
 
-        ((object)match).ShouldNotBeNull();
+        ((object?)match).ShouldNotBeNull();
     }
 
     [When(@"We upload a CSV file with three todo items")]

@@ -116,7 +116,7 @@ public static class ConfigurationExtensions
     {
         var healthcheckBuilder = services
             .AddHealthChecks()
-            .AddNpgSql(s => configuration.GetConnectionString("PostgresDb"), name: "Database Provider")
+            .AddNpgSql(s => configuration.GetConnectionString("PostgresDb") ?? throw new ArgumentException("ConnectionString for PostgresDb not found"), name: "Database Provider")
             .AddUrlGroup(
                 s =>
                 {

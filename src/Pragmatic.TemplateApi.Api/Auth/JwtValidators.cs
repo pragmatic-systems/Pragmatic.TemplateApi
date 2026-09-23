@@ -76,9 +76,9 @@ public static class TokenValidators
     {
         int length = -1;
 
-        if (validAudience.Length == tokenAudience.Length + 1 && validAudience.EndsWith("/", StringComparison.InvariantCulture))
+        if (validAudience.Length == tokenAudience.Length + 1 && validAudience.EndsWith('/'))
             length = validAudience.Length - 1;
-        else if (tokenAudience.Length == validAudience.Length + 1 && tokenAudience.EndsWith("/", StringComparison.InvariantCulture))
+        else if (tokenAudience.Length == validAudience.Length + 1 && tokenAudience.EndsWith('/'))
             length = tokenAudience.Length - 1;
 
         // the length of the audiences is different by more than 1 and neither ends in a "/"

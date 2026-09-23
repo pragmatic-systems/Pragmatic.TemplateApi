@@ -143,7 +143,7 @@ public class TestRuntime : IAsyncDisposable
             });
     }
 
-    private WebApplicationFactory<Worker.Program> ConfigureSubjectWorker(PostgreSqlContainer postgresContainer, AzuriteContainer azuriteContainer)
+    private static WebApplicationFactory<Worker.Program> ConfigureSubjectWorker(PostgreSqlContainer postgresContainer, AzuriteContainer azuriteContainer)
     {
         return new WebApplicationFactory<Worker.Program>()
             .WithWebHostBuilder(builder =>
