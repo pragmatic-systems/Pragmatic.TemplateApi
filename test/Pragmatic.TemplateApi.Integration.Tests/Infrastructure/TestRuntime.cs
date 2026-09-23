@@ -54,17 +54,20 @@ public class TestRuntime : IAsyncDisposable
     public async Task InitializeAsync()
     {
         // Configure Postgres
-        var postgresContainer = new PostgreSqlBuilder()
+        var postgresContainer = new PostgreSqlBuilder("postgres:15.1")
             .WithAutoRemove(true)
             .Build();
         PostgresContainer = postgresContainer;
 
+        // Configure Wiremock
         var wireMockContainer = new WireMockContainerBuilder()
+            .WithImage("sheyenrath/wiremock.net-alpine:2.14.0")
             .WithAutoRemove(true)
             .Build();
         WireMockContainer = wireMockContainer;
 
-        var azuriteContainer = new AzuriteBuilder("mcr.microsoft.com/azure-storage/azurite")
+        // Configure Azurite (Blob)
+        var azuriteContainer = new AzuriteBuilder("mcr.microsoft.com/azure-storage/azurite:3.37.0")
             .WithAutoRemove(true)
             .Build();
         AzuriteContainer = azuriteContainer;
