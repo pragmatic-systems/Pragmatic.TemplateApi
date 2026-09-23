@@ -19,7 +19,7 @@ public class SelectTodoItemsHandler : IRequestHandler<SelectTodo, IEnumerable<To
         return await _dbContext
             .TodoRecords
             .Where(r => r.Open)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
     }
 }
 
