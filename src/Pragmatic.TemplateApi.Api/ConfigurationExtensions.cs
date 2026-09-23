@@ -50,7 +50,7 @@ public static class ConfigurationExtensions
                         Id = "Bearer",
                     },
                 },
-                new string[0]);
+                Array.Empty<string>());
 
             options.AddSecurityRequirement(securityRequirement);
         });
