@@ -80,7 +80,7 @@ public class TestContext
     {
         var user = Users[userName];
         CurrentUser = user;
-        CurrentUser.BuildJwt(_testRuntime.SigningCertificate, _testRuntime.JwtIssuer);
+        CurrentUser.BuildJwt(_testRuntime.GetSigningCertificate(), _testRuntime.GetJwtIssuer());
     }
 
     public void ClearCurrentUser()

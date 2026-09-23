@@ -36,6 +36,14 @@ public class TestRuntime : IAsyncDisposable
         => SubjectApi ?? throw new InvalidOperationException(
             "TestRuntime has not been initialized. Call InitializeAsync() before using the subject API.");
 
+    public string GetJwtIssuer()
+    => JwtIssuer ?? throw new InvalidOperationException(
+        "TestRuntime has not been initialized. Call InitializeAsync() before getting JwtIssuer.");
+
+    public PemCertificate GetSigningCertificate()
+        => SigningCertificate ?? throw new InvalidOperationException(
+            "TestRuntime has not been initialized. Call InitializeAsync() before getting SigningCertificate.");
+
     public async ValueTask DisposeAsync()
     {
         if (WireMockContainer != null)
@@ -128,9 +136,9 @@ public class TestRuntime : IAsyncDisposable
                 builder.ConfigureTestServices(services =>
                 {
                     var config = MockOpenIdConfigurationManagerBuilder.Create(
-                        JwtIssuer,
+                        GetJwtIssuer(),
                         TestConstants.OpenIdConfigUrl,
-                        SigningCertificate);
+                        GetSigningCertificate());
 
                     // We are overriding the OIDC Config provider here.
                     // This supports injecting self signed JWTs.
