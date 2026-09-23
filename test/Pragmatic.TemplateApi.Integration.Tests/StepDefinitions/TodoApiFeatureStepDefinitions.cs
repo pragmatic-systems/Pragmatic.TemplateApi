@@ -35,7 +35,7 @@ public sealed class TodoApiFeatureStepDefinitions
     [Then("The response should contain a new RecordId")]
     public async Task TheResponseShouldContainANewRecordId()
     {
-        _testContext.NewTodoItem = await _testContext.LastResponse.Content.ReadFromJsonAsync<TodoRecord>();
+        _testContext.NewTodoItem = await GetLastResponse().Content.ReadFromJsonAsync<TodoRecord>();
         _testContext.NewTodoItem.ShouldNotBeNull();
         _testContext.NewTodoItem.ItemId.ShouldNotBe(Guid.Empty);
     }
@@ -49,7 +49,7 @@ public sealed class TodoApiFeatureStepDefinitions
     [Then("The response should contain a Todo List")]
     public async Task TheResponseShouldContainATodoList()
     {
-        _testContext.TodoList = await _testContext.LastResponse.Content.ReadFromJsonAsync<List<TodoRecord>>();
+        _testContext.TodoList = await GetLastResponse().Content.ReadFromJsonAsync<List<TodoRecord>>();
         _testContext.TodoList.ShouldNotBeNull();
     }
 
@@ -97,11 +97,11 @@ public sealed class TodoApiFeatureStepDefinitions
                 async (outcome, delay, retry, ctx) =>
                 {
                     await _testContext.GetAsync("todo-list/v1");
-                    _testContext.TodoList = await _testContext.LastResponse.Content.ReadFromJsonAsync<List<TodoRecord>>();
+                    _testContext.TodoList = await GetLastResponse().Content.ReadFromJsonAsync<List<TodoRecord>>();
                 })
             .ExecuteAsync(async () =>
             {
-                if (_testContext.TodoList.Count <= initialCount)
+                if (GetTodoList().Count <= initialCount)
                     throw new InvalidOperationException("CSV import not yet complete");
 
                 return Task.CompletedTask;
@@ -114,4 +114,12 @@ public sealed class TodoApiFeatureStepDefinitions
         _testContext.TodoList.ShouldNotBeNull();
         _testContext.TodoList.Count.ShouldBeGreaterThanOrEqualTo(count);
     }
+
+    private HttpResponseMessage GetLastResponse()
+        => _testContext.LastResponse ?? throw new InvalidOperationException(
+            "No API response is available. Make a request before inspecting the response.");
+
+    private List<TodoRecord> GetTodoList()
+        => _testContext.TodoList ?? throw new InvalidOperationException(
+            "No todo list is available. Fetch the list before inspecting its items.");
 }

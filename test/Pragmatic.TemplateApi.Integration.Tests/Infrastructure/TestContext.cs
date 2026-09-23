@@ -44,7 +44,7 @@ public class TestContext
 
     public async Task GetAsync(string path)
     {
-        using var client = _testRuntime.SubjectApi.CreateClient();
+        using var client = _testRuntime.GetSubjectApi().CreateClient();
         LastResponse = await RetryPolicy.ExecuteAsync(async () =>
         {
             if (CurrentUser != null)
@@ -57,7 +57,7 @@ public class TestContext
 
     public async Task PostAsJsonAsync<T>(string path, T payload)
     {
-        using var client = _testRuntime.SubjectApi.CreateClient();
+        using var client = _testRuntime.GetSubjectApi().CreateClient();
         LastResponse = await RetryPolicy.ExecuteAsync(async () =>
         {
             if (CurrentUser != null)
@@ -95,7 +95,7 @@ public class TestContext
     {
         var noRedirectOptions = new WebApplicationFactoryClientOptions { AllowAutoRedirect = false };
 
-        using var client = _testRuntime.SubjectApi.CreateClient(noRedirectOptions);
+        using var client = _testRuntime.GetSubjectApi().CreateClient(noRedirectOptions);
         LastResponse = await RetryPolicy.ExecuteAsync(async () =>
         {
             if (CurrentUser != null)
@@ -108,7 +108,7 @@ public class TestContext
 
     public async Task GetHangfireDashboardWithCookieAsync(string cookieValue)
     {
-        using var client = _testRuntime.SubjectApi.CreateClient();
+        using var client = _testRuntime.GetSubjectApi().CreateClient();
         client.DefaultRequestHeaders.Add("Cookie", $"{HangfireCookieJwtMiddleware.CookieName}={cookieValue}");
 
         LastResponse = await RetryPolicy.ExecuteAsync(async () =>
@@ -120,7 +120,7 @@ public class TestContext
 
     public async Task PostHangfireLogoutWithCookieAsync(string cookieValue)
     {
-        using var client = _testRuntime.SubjectApi.CreateClient();
+        using var client = _testRuntime.GetSubjectApi().CreateClient();
         client.DefaultRequestHeaders.Add("Cookie", $"{HangfireCookieJwtMiddleware.CookieName}={cookieValue}");
 
         LastResponse = await RetryPolicy.ExecuteAsync(async () =>
@@ -132,7 +132,7 @@ public class TestContext
 
     public async Task UploadCsvAsync(string fileName, string content)
     {
-        using var client = _testRuntime.SubjectApi.CreateClient();
+        using var client = _testRuntime.GetSubjectApi().CreateClient();
         if (CurrentUser != null)
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", CurrentUser.UserJwt);
 

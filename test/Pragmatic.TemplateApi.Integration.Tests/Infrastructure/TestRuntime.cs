@@ -32,6 +32,10 @@ public class TestRuntime : IAsyncDisposable
 
     public string JwtIssuer { get; private set; }
 
+    public WebApplicationFactory<Api.Program> GetSubjectApi()
+        => SubjectApi ?? throw new InvalidOperationException(
+            "TestRuntime has not been initialized. Call InitializeAsync() before using the subject API.");
+
     public async ValueTask DisposeAsync()
     {
         if (WireMockContainer != null)
@@ -50,30 +54,33 @@ public class TestRuntime : IAsyncDisposable
     public async Task InitializeAsync()
     {
         // Configure Postgres
-        PostgresContainer = new PostgreSqlBuilder()
+        var postgresContainer = new PostgreSqlBuilder()
             .WithAutoRemove(true)
             .Build();
+        PostgresContainer = postgresContainer;
 
-        WireMockContainer = new WireMockContainerBuilder()
+        var wireMockContainer = new WireMockContainerBuilder()
             .WithAutoRemove(true)
             .Build();
+        WireMockContainer = wireMockContainer;
 
-        AzuriteContainer = new AzuriteBuilder("mcr.microsoft.com/azure-storage/azurite")
+        var azuriteContainer = new AzuriteBuilder("mcr.microsoft.com/azure-storage/azurite")
             .WithAutoRemove(true)
             .Build();
+        AzuriteContainer = azuriteContainer;
 
-        await PostgresContainer.StartAsync();
-        await WireMockContainer.StartAsync();
-        await AzuriteContainer.StartAsync();
+        await postgresContainer.StartAsync();
+        await wireMockContainer.StartAsync();
+        await azuriteContainer.StartAsync();
 
         // Create SSL Certificate
         SigningCertificate = PemCertificate.Create();
 
         // Get JWT Issuer
-        JwtIssuer = WireMockContainer.GetPublicUrl().TrimEnd('/');
+        JwtIssuer = wireMockContainer.GetPublicUrl().TrimEnd('/');
 
-        SubjectApi = ConfigureSubjectApi();
-        SubjectWorker = ConfigureSubjectWorker();
+        SubjectApi = ConfigureSubjectApi(postgresContainer, azuriteContainer);
+        SubjectWorker = ConfigureSubjectWorker(postgresContainer, azuriteContainer);
 
         SubjectWorker.CreateClient();
 
@@ -81,7 +88,7 @@ public class TestRuntime : IAsyncDisposable
         await wiremockAdmin.ConfigureOIDCWellKnown(JwtIssuer);
     }
 
-    private WebApplicationFactory<Api.Program> ConfigureSubjectApi()
+    private WebApplicationFactory<Api.Program> ConfigureSubjectApi(PostgreSqlContainer postgresContainer, AzuriteContainer azuriteContainer)
     {
         return new WebApplicationFactory<Api.Program>()
             .WithWebHostBuilder(builder =>
@@ -98,14 +105,14 @@ public class TestRuntime : IAsyncDisposable
                     config.InitialData = new Dictionary<string, string?>
                     {
                         // Connection Strings
-                        { "ConnectionStrings:PostgresDb", PostgresContainer.GetConnectionString() },
+                        { "ConnectionStrings:PostgresDb", postgresContainer.GetConnectionString() },
 
                         // OIDC
                         { "OpenIdConnect:Audience", TestConstants.Audience },
                         { "OpenIdConnect:Issuer", JwtIssuer },
 
                         // Azure Blob Storage
-                        { "Storage:ConnectionString", AzuriteContainer.GetConnectionString() },
+                        { "Storage:ConnectionString", azuriteContainer.GetConnectionString() },
                         { "Storage:ContainerName", "uploads" },
                     };
 
@@ -133,7 +140,7 @@ public class TestRuntime : IAsyncDisposable
             });
     }
 
-    private WebApplicationFactory<Worker.Program> ConfigureSubjectWorker()
+    private WebApplicationFactory<Worker.Program> ConfigureSubjectWorker(PostgreSqlContainer postgresContainer, AzuriteContainer azuriteContainer)
     {
         return new WebApplicationFactory<Worker.Program>()
             .WithWebHostBuilder(builder =>
@@ -146,8 +153,8 @@ public class TestRuntime : IAsyncDisposable
 
                     config.InitialData = new Dictionary<string, string?>
                     {
-                        { "ConnectionStrings:PostgresDb", PostgresContainer.GetConnectionString() },
-                        { "Storage:ConnectionString", AzuriteContainer.GetConnectionString() },
+                        { "ConnectionStrings:PostgresDb", postgresContainer.GetConnectionString() },
+                        { "Storage:ConnectionString", azuriteContainer.GetConnectionString() },
                         { "Storage:ContainerName", "uploads" },
                     };
 
