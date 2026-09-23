@@ -132,12 +132,9 @@ public static class ConfigurationExtensions
 
     public static IServiceCollection WithAuthorizationPolicy(this IServiceCollection services)
     {
-        services.AddAuthorization(
-            authorizationOptions =>
-            {
-                authorizationOptions.AddPolicy(Roles.TodoListRead, policy => policy.RequireClaim(ClaimTypes.Role, Roles.TodoListRead));
-                authorizationOptions.AddPolicy(Roles.TodoListWrite, policy => policy.RequireClaim(ClaimTypes.Role, Roles.TodoListWrite));
-            });
+        services.AddAuthorizationBuilder()
+            .AddPolicy(Roles.TodoListRead, policy => policy.RequireClaim(ClaimTypes.Role, Roles.TodoListRead))
+            .AddPolicy(Roles.TodoListWrite, policy => policy.RequireClaim(ClaimTypes.Role, Roles.TodoListWrite));
 
         return services;
     }

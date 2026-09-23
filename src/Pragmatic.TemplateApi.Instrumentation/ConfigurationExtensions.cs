@@ -101,7 +101,7 @@ public static class ConfigurationExtensions
         {
             var connection = configuration.GetConnectionString("PostgresDb");
 
-            ArgumentNullException.ThrowIfNull(connection, "PostgresDb Connection String");
+            ArgumentException.ThrowIfNullOrEmpty(connection);
 
             Migrator.EnsureDb(connection);
 
@@ -114,7 +114,7 @@ public static class ConfigurationExtensions
 
     public static IServiceCollection AddAppHealthChecks(this IServiceCollection services, IConfiguration configuration)
     {
-        var healthcheckBuilder = services
+        services
             .AddHealthChecks()
             .AddNpgSql(s => configuration.GetConnectionString("PostgresDb") ?? throw new ArgumentException("ConnectionString for PostgresDb not found"), name: "Database Provider")
             .AddUrlGroup(
