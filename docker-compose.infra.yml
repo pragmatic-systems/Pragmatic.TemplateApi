@@ -50,9 +50,10 @@ services:
     volumes:
       - ./ssl/local.keycloak.crt:/opt/keycloak/conf/server.crt
       - ./ssl/local.keycloak.key:/opt/keycloak/conf/server.key
+      - ./keycloak/todolist-realm.json:/opt/keycloak/data/import/todolist-realm.json:ro
     networks:
       - local
-    command: [ "start-dev" ]
+    command: [ "start-dev", "--import-realm" ]
 
   local-azurite:
     image: mcr.microsoft.com/azure-storage/azurite

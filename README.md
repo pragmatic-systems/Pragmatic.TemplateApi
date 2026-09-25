@@ -38,7 +38,7 @@ To Create a project:
   - [Authentication](#authentication)
 - [Local Keycloak Hosting](#local-keycloak-hosting)
   - [Keycloak SSL Setup](#keycloak-ssl-setup)
-  - [Keycloak Configuration](#keycloak-configuration)
+  - [Keycloak (pre-configured)](#keycloak-pre-configured)
   - [Keycloak – Generate JWT](#keycloak--generate-jwt)
   - [Keycloak – Validate JWT](#keycloak--validate-jwt)
 - [Azure Entra ID Config](#azure-entra-id-config)
@@ -101,6 +101,8 @@ Url: https://localhost:8443
 Username: admin
 Password: password
 
+Realm `todolist-realm` is pre-configured on startup (see [Keycloak (pre-configured)](#keycloak-pre-configured)).
+
 ### Database Migrations
 Currently we run migrations on app-start, this simplifies startup and development, but for more mature projects we can separate the launch application and run this prior to deploying a cluster.
 
@@ -109,7 +111,7 @@ If you have an existing AWS Cognito or Azure Entra setup, you can skip local key
 
 ## Local Keycloak Hosting
 
-For full local development, you will need to configure Keycloak, which takes a bit more setup than just launching a docker container.
+The local Keycloak container ships with a pre-built realm, so no manual Keycloak configuration is required for the default local development flow.
 
 ### Keycloak SSL Setup
 
@@ -119,17 +121,19 @@ See the SSL Setup guide for local Keycloak in this repo: https://github.com/prag
 
 ### Keycloak Configuration
 
-* Go to local **[Keycloak](https://localhost:8443/)**
-* Go to the **`master`** dropdown → Create a new realm **`todolist-realm`** (a realm can represent all users across multiple applications).
-* In **realm settings**, set **Unmanaged Attributes** to `Only administrators can write`. This shows the Attributes table in user accounts for custom role configurations.
-* In your new realm, create a client **`todolist-client`** → Enable **`Client authentication`**, **`Client authorization`**, and **`Direct access grants`**.
-* Go to **Client Scopes** → **`todolist-client-dedicated`**:
-  * **Add a roles mapper:** `Add mapper by configuration` → `User Attribute`. Name: `roles-mapper`, User Attribute: `roles`, Token Claim Name: `roles`, set **`Multivalued`** = true. This includes user `roles` attributes in the JWT.
-  * **Add an audience mapper** and include the client name.
-* Under **Client** → **Client Details** → **Credentials**, record the **`client secret`** for later.
-* Create an app user **`todolist-user`** → Configure fully (first/last name, email required to activate), set and record the password, ensure it is **not transient** and has no pending actions.
-* Add attributes to the user: (`roles`, `TodoList:Read`), (`roles`, `TodoList:Write`), and (`roles`, `Hangfire:Dashboard`).
-	
+The `local-keycloak` container starts with a pre-built realm.
+The realm definition lives in [`keycloak/todolist-realm.json`](keycloak/todolist-realm.json) and is imported on startup (`start-dev --import-realm`):
+
+| What | Value |
+|------|-------|
+| Realm | `todolist-realm` |
+| Client | `todolist-client` (confidential, `Direct access grants`, client authorization) |
+| Client secret | `todolist-client-secret` |
+| User | `todolist-user` |
+| User password | `password` |
+| User roles | `TodoList:Read`, `TodoList:Write`, `Hangfire:Dashboard` (via the user `roles` attribute + `roles-mapper` on `todolist-client-dedicated`) |
+
+
 ### Keycloak – Generate JWT
 
 Post: https://localhost:8443/realms/todolist-realm/protocol/openid-connect/token
@@ -137,9 +141,9 @@ Post: https://localhost:8443/realms/todolist-realm/protocol/openid-connect/token
 With URL form:
 grant_type: password
 client_id: todolist-client
-client_secret: {clientsecret}
+client_secret: todolist-client-secret
 username: todolist-user
-password: {userpassword}
+password: password
 
 ### Keycloak – Validate JWT
 
