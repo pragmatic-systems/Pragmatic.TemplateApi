@@ -1,0 +1,23 @@
+meta {
+  name: Get JWT (Local Keycloak)
+  type: http
+  seq: 1
+}
+
+post {
+  url: https://localhost:8443/realms/todolist/protocol/openid-connect/token
+  body: formUrlEncoded
+  auth: none
+}
+
+body:form-urlencoded {
+  grant_type: password
+  client_id: todolist-client
+  username: todolist-user
+  password: password
+  client_secret: todolist-client-secret
+}
+
+tests {
+  bru.setEnvVar("token", res.body.access_token);
+}

@@ -1,0 +1,93 @@
+{
+  "realm": "todolist",
+  "enabled": true,
+  "displayName": "Todo List (local dev)",
+  "registrationAllowed": false,
+  "attributes": {
+    "unmanaged-permission.enabled": "true"
+  },
+  "clients": [
+    {
+      "clientId": "todolist-client",
+      "name": "Todo List API (local dev client)",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "clientAuthenticatorType": "client-secret",
+      "publicClient": false,
+      "directAccessGrantsEnabled": true,
+      "authorizationServicesEnabled": true,
+      "secret": "todolist-client-secret",
+      "attributes": {
+        "post.logout.redirect.uris": "+"
+      },
+      "defaultClientScopes": [
+        "web-origins",
+        "profile",
+        "email",
+        "roles",
+        "todolist-client-dedicated"
+      ]
+    }
+  ],
+  "clientScopes": [
+    {
+      "name": "todolist-client-dedicated",
+      "description": "App-specific token mappers (roles attribute + audience).",
+      "protocol": "openid-connect",
+      "attributes": {},
+      "protocolMappers": [
+        {
+          "name": "roles-mapper",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "claim.name": "roles",
+            "jsonType.label": "STRING",
+            "user.attribute": "roles",
+            "multivalued": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "true"
+          }
+        },
+        {
+          "name": "audience-mapper",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "todolist-client",
+            "included.client.audience.label": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "id": "23cc471c-fd86-4268-ac2d-e024c18c8be4",
+      "username": "todolist-user",
+      "enabled": true,
+      "email": "todolist-user@local.com",
+      "emailVerified": true,
+      "firstName": "Todo",
+      "lastName": "List User",
+      "attributes": {
+        "roles": [
+          "TodoList:Read",
+          "TodoList:Write",
+          "Hangfire:Dashboard"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "userLabel": "password",
+          "value": "password"
+        }
+      ]
+    }
+  ]
+}
