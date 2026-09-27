@@ -363,3 +363,6 @@ MigrationBackup/
 FodyWeavers.xsd
 *.ncrunchsolution
 /ssl
+
+# NCrunch
+/.NCrunch_Pragmatic.TemplateApi
