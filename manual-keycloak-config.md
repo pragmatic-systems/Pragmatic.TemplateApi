@@ -6,7 +6,7 @@ Login is admin/password by default for local config.
 ### Configure Server
 
 * Go to local **[Keycloak](https://localhost:8443/)**
-* Go to the **`master`** dropdown → Create a new realm **`todolist-realm`** (a realm can represent all users across multiple applications).
+* Go to the **`master`** dropdown → Create a new realm **`todolist`** (a realm can represent all users across multiple applications).
 * In **realm settings**, set **Unmanaged Attributes** to `Only administrators can write`. This shows the Attributes table in user accounts for custom role configurations.
 * In your new realm, create a client **`todolist-client`** → Enable **`Client authentication`**, **`Client authorization`**, and **`Direct access grants`**.
 * Go to **Client Scopes** → **`todolist-client-dedicated`**:
@@ -18,7 +18,7 @@ Login is admin/password by default for local config.
 
 ### Keycloak – Generate JWT
 
-Post: https://localhost:8443/realms/todolist-realm/protocol/openid-connect/token
+Post: https://localhost:8443/realms/todolist/protocol/openid-connect/token
 
 With URL form:
 grant_type: password

@@ -101,7 +101,7 @@ Url: https://localhost:8443
 Username: admin
 Password: password
 
-Realm `todolist-realm` is pre-configured on startup (see [Keycloak (pre-configured)](#keycloak-pre-configured)).
+Realm `todolist` is pre-configured on startup (see [Keycloak (pre-configured)](#keycloak-pre-configured)).
 
 ### Database Migrations
 Currently we run migrations on app-start, this simplifies startup and development, but for more mature projects we can separate the launch application and run this prior to deploying a cluster.
@@ -119,14 +119,14 @@ For local keycloak to work properly as an OIDC server with another application, 
 
 See the SSL Setup guide for local Keycloak in this repo: https://github.com/pragmatic-systems/Pragmatic.DockerTools
 
-### Keycloak Configuration
+### Keycloak (pre-configured)
 
 The `local-keycloak` container starts with a pre-built realm.
 The realm definition lives in [`keycloak/todolist-realm.json`](keycloak/todolist-realm.json) and is imported on startup (`start-dev --import-realm`):
 
 | What | Value |
 |------|-------|
-| Realm | `todolist-realm` |
+| Realm | `todolist` |
 | Client | `todolist-client` (confidential, `Direct access grants`, client authorization) |
 | Client secret | `todolist-client-secret` |
 | User | `todolist-user` |
@@ -136,7 +136,7 @@ The realm definition lives in [`keycloak/todolist-realm.json`](keycloak/todolist
 
 ### Keycloak – Generate JWT
 
-Post: https://localhost:8443/realms/todolist-realm/protocol/openid-connect/token
+Post: https://localhost:8443/realms/todolist/protocol/openid-connect/token
 
 With URL form:
 grant_type: password
@@ -149,7 +149,7 @@ password: password
 
 For the configuration in your dotnet application, you will need:
 
-Issuer: `https://localhost:8443/realms/todolist-realm`
+Issuer: `https://localhost:8443/realms/todolist`
 Audience: `todolist-client`
 
 ## Azure Entra ID Config
