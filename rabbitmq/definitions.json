@@ -1,0 +1,22 @@
+{
+  "users": [
+    {
+      "name": "local",
+      "password": "local",
+      "tags": [ "administrator" ]
+    }
+  ],
+  "vhosts": [ { "name": "/" } ],
+  "queues": [
+    {
+      "name": "todo-message",
+      "vhost": "/",
+      "durable": true
+    },
+    {
+      "name": "todo-message-dl",
+      "vhost": "/",
+      "durable": true
+    }
+  ]
+}

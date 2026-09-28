@@ -34,6 +34,7 @@ To Create a project:
   - [Seq](#seq)
   - [Postgres (+ PgAdmin)](#postgres--pgadmin)
   - [Keycloak](#keycloak)
+  - [RabbitMQ](#rabbitmq)
   - [Database Migrations](#database-migrations)
   - [Authentication](#authentication)
 - [Local Keycloak Hosting](#local-keycloak-hosting)
@@ -102,6 +103,15 @@ Username: admin
 Password: password
 
 Realm `todolist` is pre-configured on startup (see [Keycloak (pre-configured)](#keycloak-pre-configured)).
+
+### RabbitMQ
+Url (management UI): http://localhost:15672
+Username: admin
+Password: password
+
+AMQP connection string: `amqp://local:local@localhost:5672`
+
+The durable `todo-message` queue on vhost `/` is pre-configured on startup via [`rabbitmq/definitions.json`](rabbitmq/definitions.json) (loaded with `load_definitions` from [`rabbitmq/rabbitmq.conf`](rabbitmq/rabbitmq.conf)).
 
 ### Database Migrations
 Currently we run migrations on app-start, this simplifies startup and development, but for more mature projects we can separate the launch application and run this prior to deploying a cluster.
