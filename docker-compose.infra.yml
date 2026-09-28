@@ -55,6 +55,16 @@ services:
       - local
     command: [ "start-dev", "--import-realm" ]
 
+  local-rabbitmq:
+    image: rabbitmq:4.1-management
+    container_name: local-rabbitmq
+    restart: always
+    ports:
+      - 5672:5672
+      - 15672:15672
+    networks:
+      - local
+
   local-azurite:
     image: mcr.microsoft.com/azure-storage/azurite
     container_name: local-azurite
