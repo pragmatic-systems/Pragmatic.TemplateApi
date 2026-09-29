@@ -55,6 +55,9 @@ public class TestRuntime : IAsyncDisposable
         if (WireMockContainer != null)
             await WireMockContainer.DisposeAsync();
 
+        if (PostgresContainer != null)
+            await PostgresContainer.DisposeAsync();
+
         if (AzuriteContainer != null)
             await AzuriteContainer.DisposeAsync();
 
