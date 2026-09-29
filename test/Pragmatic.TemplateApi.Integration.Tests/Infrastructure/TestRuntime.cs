@@ -43,8 +43,8 @@ public class TestRuntime : IAsyncDisposable
             "TestRuntime has not been initialized. Call InitializeAsync() before using the subject API.");
 
     public string GetJwtIssuer()
-    => JwtIssuer ?? throw new InvalidOperationException(
-        "TestRuntime has not been initialized. Call InitializeAsync() before getting JwtIssuer.");
+        => JwtIssuer ?? throw new InvalidOperationException(
+            "TestRuntime has not been initialized. Call InitializeAsync() before getting JwtIssuer.");
 
     public PemCertificate GetSigningCertificate()
         => SigningCertificate ?? throw new InvalidOperationException(
