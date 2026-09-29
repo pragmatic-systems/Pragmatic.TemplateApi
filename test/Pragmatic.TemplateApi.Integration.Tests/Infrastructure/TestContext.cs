@@ -7,6 +7,7 @@ using Azure.Storage.Blobs;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Polly;
 using Pragmatic.TemplateApi.Api.Auth;
+using Pragmatic.TemplateApi.Core.Model;
 using Pragmatic.TemplateApi.Database.Model;
 using Pragmatic.TemplateApi.Integration.Tests.Infrastructure.Auth;
 
@@ -154,5 +155,3 @@ public class TestContext
         }
     }
 }
-
-public record CsvUploadResult(string BlobName, string Message);
