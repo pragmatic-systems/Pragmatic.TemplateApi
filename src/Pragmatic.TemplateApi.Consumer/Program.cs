@@ -16,7 +16,9 @@ public class Program
             var builder = WebApplication.CreateBuilder(args);
 
             builder.Services.WithSerilog(builder.Configuration, "Pragmatic.TemplateApi Consumer");
+            builder.Services.WithPostgres(builder.Configuration);
             builder.Services.AddRabbitConsumer(builder.Configuration);
+            builder.Services.WithMediatr();
 
             var app = builder.Build();
 

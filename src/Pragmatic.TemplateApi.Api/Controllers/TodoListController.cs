@@ -18,7 +18,7 @@ namespace Pragmatic.TemplateApi.Api.Controllers;
 public class TodoListController : ControllerBase
 {
     private readonly IMediator _mediator;
-    private BlobContainerClient _blobClient;
+    private readonly BlobContainerClient _blobClient;
 
     public TodoListController(IMediator mediator, BlobContainerClient blobClient)
     {

@@ -15,8 +15,6 @@ public class Program
         {
             var builder = WebApplication.CreateBuilder(args);
 
-            var testMode = builder.Environment.EnvironmentName == "IntegrationTest";
-
             builder.Services.WithSerilog(builder.Configuration, "Pragmatic.TemplateApi Worker");
             builder.Services.WithPostgres(builder.Configuration);
             builder.Services.WithAzureBlobStorage(builder.Configuration);

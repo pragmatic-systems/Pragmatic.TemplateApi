@@ -1,6 +1,9 @@
-﻿using System.Text;
+﻿using System.Runtime.CompilerServices;
+using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Options;
+using Pragmatic.CQRS;
+using Pragmatic.TemplateApi.Core.Handlers;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 
@@ -14,16 +17,18 @@ public sealed class TodoMessageConsumer : BackgroundService
 
     private readonly RabbitOptions _options;
     private readonly ILogger<TodoMessageConsumer> _logger;
-
     private IConnection? _connection;
     private IModel? _channel;
+    private readonly IServiceScopeFactory _scopeFactory;
 
     public TodoMessageConsumer(
         IOptions<RabbitOptions> options,
-        ILogger<TodoMessageConsumer> logger)
+        ILogger<TodoMessageConsumer> logger,
+        IServiceScopeFactory scopeFactory)
     {
         _options = options.Value;
         _logger = logger;
+        _scopeFactory = scopeFactory;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -75,7 +80,7 @@ public sealed class TodoMessageConsumer : BackgroundService
             eventArgs.Redelivered,
             message is null
                 ? $"unparseable: {Truncate(body)}"
-                : Truncate(message.Text));
+                : Truncate(message.Title));
 
         try
         {
@@ -94,11 +99,11 @@ public sealed class TodoMessageConsumer : BackgroundService
         }
     }
 
-    private static TodoMessage? TryParseMessage(string body)
+    private static InsertTodo? TryParseMessage(string body)
     {
         try
         {
-            return JsonSerializer.Deserialize<TodoMessage>(body, JsonOptions);
+            return JsonSerializer.Deserialize<InsertTodo>(body, JsonOptions);
         }
         catch (JsonException)
         {
@@ -106,11 +111,12 @@ public sealed class TodoMessageConsumer : BackgroundService
         }
     }
 
-    private Task ProcessMessageAsync(TodoMessage message, bool redelivered)
+    private async Task ProcessMessageAsync(InsertTodo message, bool redelivered)
     {
-        // TODO: Replace with real processing of the consumed message.
-        _logger.LogDebug("Processed message with text '{Text}' ({Length} characters)", message.Text, message.Text.Length);
-        return Task.CompletedTask;
+        using var scope = _scopeFactory.CreateScope();
+        _logger.LogDebug("Processed message with {Title} / {Description})", message.Title, message.Description);
+        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+        await mediator.Send(message, CancellationToken.None);
     }
 
     private static string Truncate(string value)
