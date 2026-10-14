@@ -43,3 +43,15 @@ Scenario: Upload CSV and import todo items via background job
 	And We get our TodoList
 	Then The response should contain a Todo List
 	And The response should contain at least 3 todo items
+
+@todo-list @api @queue
+Scenario: Insert Todo item via RabbitMQ queue
+	Given We have user 'Dave'
+	And User 'Dave' has claims 'Read'
+	When We are connecting as 'Dave'
+	And We publish a todo item to the queue
+	And We wait for the queue consumer to insert the item
+	And We get our TodoList
+	Then The response should be 200 OK
+	And The response should contain a Todo List
+	And The result contains the published todo item

@@ -1,4 +1,6 @@
-﻿using Azure.Storage.Blobs;
+﻿using System.Text;
+using System.Text.Json;
+using Azure.Storage.Blobs;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -6,6 +8,7 @@ using Microsoft.Extensions.Configuration.Memory;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Protocols;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
+using Pragmatic.TemplateApi.Core.Handlers;
 using Pragmatic.TemplateApi.Integration.Tests.Infrastructure.Auth;
 using RabbitMQ.Client;
 using Testcontainers.Azurite;
@@ -194,6 +197,27 @@ public class TestRuntime : IAsyncDisposable
         // NOTE: All params nescessary for queues to live through test lifecycle.
         channel.QueueDeclare(queue: "todo-message", durable: true, exclusive: false, autoDelete: false, arguments: null);
         channel.QueueDeclare(queue: "todo-message-dl", durable: true, exclusive: false, autoDelete: false, arguments: null);
+    }
+
+    /// <summary>
+    /// Publishes an <see cref="InsertTodo"/> message to the <c>todo-message</c> queue,
+    /// acting as an external producer so the Consumer can pick it up and insert it.
+    /// </summary>
+    public void PublishTodoItemToQueue(string title, string description, DateTime dueDate)
+    {
+        var rabbitMqContainer = RabbitMqContainer
+            ?? throw new InvalidOperationException(
+                "TestRuntime has not been initialized. Call InitializeAsync() before publishing to RabbitMQ.");
+
+        var factory = new ConnectionFactory { Uri = new Uri(rabbitMqContainer.GetConnectionString()) };
+        using var connection = factory.CreateConnection();
+        using var channel = connection.CreateModel();
+
+        var message = new InsertTodo(title, description, dueDate);
+        var json = JsonSerializer.Serialize(message, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        var body = Encoding.UTF8.GetBytes(json);
+
+        channel.BasicPublish(exchange: string.Empty, routingKey: "todo-message", basicProperties: null, body: body);
     }
 
     private static WebApplicationFactory<Worker.Program> ConfigureSubjectWorker(PostgreSqlContainer postgresContainer, AzuriteContainer azuriteContainer)

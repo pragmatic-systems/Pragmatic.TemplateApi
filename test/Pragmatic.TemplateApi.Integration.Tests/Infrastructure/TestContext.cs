@@ -28,6 +28,11 @@ public class TestContext
 
     public string? UploadedBlobName { get; set; }
 
+    /// <summary>
+    /// Title of the todo item published to the RabbitMQ queue. Stored so it can be matched in the list.
+    /// </summary>
+    public string PublishedTodoTitle { get; private set; } = string.Empty;
+
     public Dictionary<string, TestUser> Users { get; private set; } = new Dictionary<string, TestUser>();
 
     public HttpResponseMessage? LastResponse { get; set; }
@@ -153,5 +158,20 @@ public class TestContext
         {
             UploadedBlobName = result.BlobName;
         }
+    }
+
+    /// <summary>
+    /// Publishes a todo item to the RabbitMQ <c>todo-message</c> queue with a unique title.
+    /// The title is stored in <see cref="PublishedTodoTitle"/> so it can be matched in the list.
+    /// </summary>
+    public void PublishTodoItemToQueue()
+    {
+        var title = $"Queue-Imported-Task-{Guid.NewGuid():N}";
+        PublishedTodoTitle = title;
+
+        _testRuntime.PublishTodoItemToQueue(
+            title,
+            "Imported via the RabbitMQ message queue.",
+            DateTime.UtcNow.Date.AddDays(1));
     }
 }
