@@ -115,6 +115,46 @@ public sealed class TodoApiFeatureStepDefinitions
         _testContext.TodoList.Count.ShouldBeGreaterThanOrEqualTo(count);
     }
 
+    [When("We publish a todo item to the queue")]
+    public void WePublishATodoItemToTheQueue()
+    {
+        _testContext.PublishTodoItemToQueue();
+    }
+
+    [When("We wait for the queue consumer to insert the item")]
+    public async Task WeWaitForTheQueueConsumerToInsertTheItem()
+    {
+        var title = _testContext.PublishedTodoTitle;
+
+        await Policy
+            .Handle<HttpRequestException>()
+            .Or<Exception>()
+            .WaitAndRetryAsync(
+                Enumerable.Range(0, 15)
+                    .Select(i => TimeSpan.FromSeconds(1)),
+                async (outcome, delay, retry, ctx) =>
+                {
+                    await _testContext.GetAsync("todo-list/v1");
+                    _testContext.TodoList = await GetLastResponse().Content.ReadFromJsonAsync<List<TodoRecord>>();
+                })
+            .ExecuteAsync(async () =>
+            {
+                if (GetTodoList().FirstOrDefault(i => i.Title == title) is null)
+                    throw new InvalidOperationException("Queue-imported todo item not yet present");
+
+                return Task.CompletedTask;
+            });
+    }
+
+    [Then("The result contains the published todo item")]
+    public void TheResultContainsThePublishedTodoItem()
+    {
+        var match = _testContext.TodoList?
+            .SingleOrDefault(i => i.Title == _testContext.PublishedTodoTitle);
+
+        ((object?)match).ShouldNotBeNull();
+    }
+
     private HttpResponseMessage GetLastResponse()
         => _testContext.LastResponse ?? throw new InvalidOperationException(
             "No API response is available. Make a request before inspecting the response.");

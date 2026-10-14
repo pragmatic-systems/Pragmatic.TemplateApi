@@ -105,7 +105,7 @@ namespace Pragmatic.TemplateApi.Integration.Tests.Features
         
         private static global::Reqnroll.Formatters.RuntimeSupport.FeatureLevelCucumberMessages InitializeCucumberMessages()
         {
-            return new global::Reqnroll.Formatters.RuntimeSupport.FeatureLevelCucumberMessages("Features/TodoApiFeatures.feature.ndjson", 6);
+            return new global::Reqnroll.Formatters.RuntimeSupport.FeatureLevelCucumberMessages("Features/TodoApiFeatures.feature.ndjson", 7);
         }
         
         async System.Threading.Tasks.ValueTask Xunit.IAsyncLifetime.InitializeAsync()
@@ -336,6 +336,64 @@ this.ScenarioInitialize(scenarioInfo, ruleInfo);
 #line hidden
 #line 45
  await testRunner.AndAsync("The response should contain at least 3 todo items", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+            }
+            await this.ScenarioCleanupAsync();
+        }
+        
+        [global::Xunit.FactAttribute(DisplayName="Insert Todo item via RabbitMQ queue")]
+        [global::Xunit.TraitAttribute("FeatureTitle", "TodoApiFeatures")]
+        [global::Xunit.TraitAttribute("Description", "Insert Todo item via RabbitMQ queue")]
+        [global::Xunit.TraitAttribute("Category", "todo-list")]
+        [global::Xunit.TraitAttribute("Category", "api")]
+        [global::Xunit.TraitAttribute("Category", "queue")]
+        public async global::System.Threading.Tasks.Task InsertTodoItemViaRabbitMQQueue()
+        {
+            string[] tagsOfScenario = new string[] {
+                    "todo-list",
+                    "api",
+                    "queue"};
+            global::System.Collections.Specialized.OrderedDictionary argumentsOfScenario = new global::System.Collections.Specialized.OrderedDictionary();
+            string pickleIndex = "4";
+            global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("Insert Todo item via RabbitMQ queue", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
+            string[] tagsOfRule = ((string[])(null));
+            global::Reqnroll.RuleInfo ruleInfo = null;
+#line 48
+this.ScenarioInitialize(scenarioInfo, ruleInfo);
+#line hidden
+            if ((global::Reqnroll.TagHelper.ContainsIgnoreTag(scenarioInfo.CombinedTags) || global::Reqnroll.TagHelper.ContainsIgnoreTag(featureTags)))
+            {
+                await testRunner.SkipScenarioAsync();
+            }
+            else
+            {
+                await this.ScenarioStartAsync();
+#line 49
+ await testRunner.GivenAsync("We have user \'Dave\'", ((string)(null)), ((global::Reqnroll.Table)(null)), "Given ");
+#line hidden
+#line 50
+ await testRunner.AndAsync("User \'Dave\' has claims \'Read\'", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+#line 51
+ await testRunner.WhenAsync("We are connecting as \'Dave\'", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
+#line hidden
+#line 52
+ await testRunner.AndAsync("We publish a todo item to the queue", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+#line 53
+ await testRunner.AndAsync("We wait for the queue consumer to insert the item", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+#line 54
+ await testRunner.AndAsync("We get our TodoList", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+#line 55
+ await testRunner.ThenAsync("The response should be 200 OK", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
+#line hidden
+#line 56
+ await testRunner.AndAsync("The response should contain a Todo List", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+#line 57
+ await testRunner.AndAsync("The result contains the published todo item", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
 #line hidden
             }
             await this.ScenarioCleanupAsync();

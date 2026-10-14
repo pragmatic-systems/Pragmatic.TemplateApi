@@ -1,4 +1,6 @@
-﻿using Azure.Storage.Blobs;
+﻿using System.Text;
+using System.Text.Json;
+using Azure.Storage.Blobs;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -6,9 +8,12 @@ using Microsoft.Extensions.Configuration.Memory;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Protocols;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
+using Pragmatic.TemplateApi.Core.Handlers;
 using Pragmatic.TemplateApi.Integration.Tests.Infrastructure.Auth;
+using RabbitMQ.Client;
 using Testcontainers.Azurite;
 using Testcontainers.PostgreSql;
+using Testcontainers.RabbitMq;
 using WireMock.Net.Testcontainers;
 
 namespace Pragmatic.TemplateApi.Integration.Tests.Infrastructure;
@@ -21,9 +26,13 @@ public class TestRuntime : IAsyncDisposable
 
     public AzuriteContainer? AzuriteContainer { get; private set; }
 
+    public RabbitMqContainer? RabbitMqContainer { get; private set; }
+
     public WebApplicationFactory<Api.Program>? SubjectApi { get; private set; }
 
     public WebApplicationFactory<Worker.Program>? SubjectWorker { get; private set; }
+
+    public WebApplicationFactory<Consumer.Program>? SubjectConsumer { get; private set; }
 
     /// <summary>
     /// Certificate used for signing the JWT used by the API.
@@ -37,8 +46,8 @@ public class TestRuntime : IAsyncDisposable
             "TestRuntime has not been initialized. Call InitializeAsync() before using the subject API.");
 
     public string GetJwtIssuer()
-    => JwtIssuer ?? throw new InvalidOperationException(
-        "TestRuntime has not been initialized. Call InitializeAsync() before getting JwtIssuer.");
+        => JwtIssuer ?? throw new InvalidOperationException(
+            "TestRuntime has not been initialized. Call InitializeAsync() before getting JwtIssuer.");
 
     public PemCertificate GetSigningCertificate()
         => SigningCertificate ?? throw new InvalidOperationException(
@@ -49,14 +58,23 @@ public class TestRuntime : IAsyncDisposable
         if (WireMockContainer != null)
             await WireMockContainer.DisposeAsync();
 
+        if (PostgresContainer != null)
+            await PostgresContainer.DisposeAsync();
+
         if (AzuriteContainer != null)
             await AzuriteContainer.DisposeAsync();
+
+        if (RabbitMqContainer != null)
+            await RabbitMqContainer.DisposeAsync();
 
         if (SubjectApi != null)
             await SubjectApi.DisposeAsync();
 
         if (SubjectWorker != null)
             await SubjectWorker.DisposeAsync();
+
+        if (SubjectConsumer != null)
+            await SubjectConsumer.DisposeAsync();
 
         GC.SuppressFinalize(this);
     }
@@ -82,9 +100,20 @@ public class TestRuntime : IAsyncDisposable
             .Build();
         AzuriteContainer = azuriteContainer;
 
+        // Configure RabbitMQ
+        var rabbitMqContainer = new RabbitMqBuilder("rabbitmq:4.1-management")
+            .WithUsername("local")
+            .WithPassword("local")
+            .WithAutoRemove(true)
+            .Build();
+        RabbitMqContainer = rabbitMqContainer;
+
         await postgresContainer.StartAsync();
         await wireMockContainer.StartAsync();
         await azuriteContainer.StartAsync();
+        await rabbitMqContainer.StartAsync();
+
+        EnsureRabbitQueuesExist(rabbitMqContainer);
 
         // Create SSL Certificate
         SigningCertificate = PemCertificate.Create();
@@ -95,8 +124,10 @@ public class TestRuntime : IAsyncDisposable
 
         SubjectApi = ConfigureSubjectApi(postgresContainer, azuriteContainer);
         SubjectWorker = ConfigureSubjectWorker(postgresContainer, azuriteContainer);
+        SubjectConsumer = ConfigureSubjectConsumer(postgresContainer, rabbitMqContainer);
 
         SubjectWorker.CreateClient();
+        SubjectConsumer.CreateClient();
 
         var wiremockAdmin = new WiremockConfigurationClient(WireMockContainer.CreateWireMockAdminClient());
         await wiremockAdmin.ConfigureOIDCWellKnown(jwtIssuer);
@@ -154,6 +185,41 @@ public class TestRuntime : IAsyncDisposable
             });
     }
 
+    /// <summary>
+    /// Declares the queues the Consumer expects, mirroring the local RabbitMQ definitions.
+    /// </summary>
+    private static void EnsureRabbitQueuesExist(RabbitMqContainer rabbitMqContainer)
+    {
+        var factory = new ConnectionFactory { Uri = new Uri(rabbitMqContainer.GetConnectionString()) };
+        using var connection = factory.CreateConnection();
+        using var channel = connection.CreateModel();
+
+        // NOTE: All params nescessary for queues to live through test lifecycle.
+        channel.QueueDeclare(queue: "todo-message", durable: true, exclusive: false, autoDelete: false, arguments: null);
+        channel.QueueDeclare(queue: "todo-message-dl", durable: true, exclusive: false, autoDelete: false, arguments: null);
+    }
+
+    /// <summary>
+    /// Publishes an <see cref="InsertTodo"/> message to the <c>todo-message</c> queue,
+    /// acting as an external producer so the Consumer can pick it up and insert it.
+    /// </summary>
+    public void PublishTodoItemToQueue(string title, string description, DateTime dueDate)
+    {
+        var rabbitMqContainer = RabbitMqContainer
+            ?? throw new InvalidOperationException(
+                "TestRuntime has not been initialized. Call InitializeAsync() before publishing to RabbitMQ.");
+
+        var factory = new ConnectionFactory { Uri = new Uri(rabbitMqContainer.GetConnectionString()) };
+        using var connection = factory.CreateConnection();
+        using var channel = connection.CreateModel();
+
+        var message = new InsertTodo(title, description, dueDate);
+        var json = JsonSerializer.Serialize(message, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        var body = Encoding.UTF8.GetBytes(json);
+
+        channel.BasicPublish(exchange: string.Empty, routingKey: "todo-message", basicProperties: null, body: body);
+    }
+
     private static WebApplicationFactory<Worker.Program> ConfigureSubjectWorker(PostgreSqlContainer postgresContainer, AzuriteContainer azuriteContainer)
     {
         return new WebApplicationFactory<Worker.Program>()
@@ -170,6 +236,34 @@ public class TestRuntime : IAsyncDisposable
                         { "ConnectionStrings:PostgresDb", postgresContainer.GetConnectionString() },
                         { "Storage:ConnectionString", azuriteContainer.GetConnectionString() },
                         { "Storage:ContainerName", "uploads" },
+                    };
+
+                    b.Add(config);
+                });
+
+                builder.UseDefaultServiceProvider(o =>
+                {
+                    o.ValidateOnBuild = true;
+                });
+            });
+    }
+
+    private static WebApplicationFactory<Consumer.Program> ConfigureSubjectConsumer(PostgreSqlContainer postgresContainer, RabbitMqContainer rabbitMqContainer)
+    {
+        return new WebApplicationFactory<Consumer.Program>()
+            .WithWebHostBuilder(builder =>
+            {
+                builder.UseEnvironment("IntegrationTest");
+
+                builder.ConfigureAppConfiguration((c, b) =>
+                {
+                    var config = new MemoryConfigurationSource();
+
+                    config.InitialData = new Dictionary<string, string?>
+                    {
+                        { "ConnectionStrings:PostgresDb", postgresContainer.GetConnectionString() },
+                        { "RabbitMQ:ConnectionString", rabbitMqContainer.GetConnectionString() },
+                        { "RabbitMQ:QueueName", "todo-message" },
                     };
 
                     b.Add(config);

@@ -2,7 +2,8 @@
   "NugetPackages": [],
   "DockerPackages": [
     "./src/Pragmatic.TemplateApi.Api/Dockerfile",
-    "./src/Pragmatic.TemplateApi.Worker/Dockerfile"
+    "./src/Pragmatic.TemplateApi.Worker/Dockerfile",
+    "./src/Pragmatic.TemplateApi.Consumer/Dockerfile"
   ],
   "Tests": [
     "./test/Pragmatic.TemplateApi.IntegrationTests/Pragmatic.TemplateApi.IntegrationTests.csproj",
