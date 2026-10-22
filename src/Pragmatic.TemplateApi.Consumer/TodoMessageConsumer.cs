@@ -1,6 +1,8 @@
 ﻿using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
+using FluentValidation;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Pragmatic.CQRS;
 using Pragmatic.TemplateApi.Core.Handlers;
@@ -17,9 +19,9 @@ public sealed class TodoMessageConsumer : BackgroundService
 
     private readonly RabbitOptions _options;
     private readonly ILogger<TodoMessageConsumer> _logger;
+    private readonly IServiceScopeFactory _scopeFactory;
     private IConnection? _connection;
     private IModel? _channel;
-    private readonly IServiceScopeFactory _scopeFactory;
 
     public TodoMessageConsumer(
         IOptions<RabbitOptions> options,
@@ -114,13 +116,26 @@ public sealed class TodoMessageConsumer : BackgroundService
     private async Task ProcessMessageAsync(InsertTodo message, bool redelivered)
     {
         using var scope = _scopeFactory.CreateScope();
+
+        // Queue messages don't get the API's model binding validation, so validate explicitly.
+        // A failure here throws and the message is dead-lettered instead of inserted.
+        var validator = scope.ServiceProvider.GetRequiredService<IValidator<InsertTodo>>();
+        var validation = await validator.ValidateAsync(message);
+        if (!validation.IsValid)
+        {
+            throw new ValidationException(validation.Errors);
+        }
+
         _logger.LogDebug("Processed message with {Title} / {Description})", message.Title, message.Description);
         var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
         await mediator.Send(message, CancellationToken.None);
     }
 
-    private static string Truncate(string value)
-        => value.Length <= MaxLoggedTextLength ? value : value[..MaxLoggedTextLength] + "…";
+    private static string Truncate(string? value)
+    {
+        value = value ?? string.Empty;
+        return value.Length <= MaxLoggedTextLength ? value : value[..MaxLoggedTextLength] + "…";
+    }
 
     public override Task StopAsync(CancellationToken cancellationToken)
     {

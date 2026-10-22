@@ -1,8 +1,11 @@
-﻿using HealthChecks.RabbitMQ;
+﻿using FluentValidation;
+using HealthChecks.RabbitMQ;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Options;
+using Pragmatic.TemplateApi.Core.Handlers;
+using Pragmatic.TemplateApi.Core.Validators;
 
 namespace Pragmatic.TemplateApi.Consumer;
 
@@ -13,6 +16,7 @@ public static class ServiceCollectionExtensions
         services.Configure<RabbitOptions>(configuration.GetSection(RabbitOptions.SectionName));
 
         services.AddSingleton<TodoMessageConsumer>();
+
         services.AddHostedService(sp => sp.GetRequiredService<TodoMessageConsumer>());
 
         services

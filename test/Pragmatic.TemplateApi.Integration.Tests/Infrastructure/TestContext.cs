@@ -33,6 +33,15 @@ public class TestContext
     /// </summary>
     public string PublishedTodoTitle { get; private set; } = string.Empty;
 
+    /// <summary>
+    /// Description of the poison message published to the queue. Stored so it can be matched (or not) in the list.
+    /// </summary>
+    public string PoisonTodoDescription { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Result of the last dead letter re-drive invoked from a test step.
+    /// </summary>
+
     public Dictionary<string, TestUser> Users { get; private set; } = new Dictionary<string, TestUser>();
 
     public HttpResponseMessage? LastResponse { get; set; }
@@ -174,4 +183,26 @@ public class TestContext
             "Imported via the RabbitMQ message queue.",
             DateTime.UtcNow.Date.AddDays(1));
     }
+
+    /// <summary>
+    /// Publishes a poison message (null title) to the RabbitMQ queue.
+    /// The Consumer's validation rejects it, so it is dead lettered.
+    /// </summary>
+    public void PublishPoisonTodoItemToQueue()
+    {
+        PoisonTodoDescription = $"Poison message {Guid.NewGuid():N}";
+
+        _testRuntime.PublishPoisonTodoItemToQueue(
+            PoisonTodoDescription,
+            DateTime.UtcNow.Date.AddDays(1));
+    }
+
+    public int GetDeadLetterMessageCount()
+        => _testRuntime.GetDeadLetterMessageCount();
+
+    public IEnumerable<string> FetchDeadLetterQueue()
+        => _testRuntime.FetchDeadLetterQueue();
+
+    public void PurgeFromDLQ(string entity)
+        => _testRuntime.PurgeFromDLQ(entity);
 }

@@ -113,7 +113,7 @@ public class TestRuntime : IAsyncDisposable
         await azuriteContainer.StartAsync();
         await rabbitMqContainer.StartAsync();
 
-        EnsureRabbitQueuesExist(rabbitMqContainer);
+        EnsureRabbitTopology(rabbitMqContainer);
 
         // Create SSL Certificate
         SigningCertificate = PemCertificate.Create();
@@ -186,18 +186,40 @@ public class TestRuntime : IAsyncDisposable
     }
 
     /// <summary>
-    /// Declares the queues the Consumer expects, mirroring the local RabbitMQ definitions.
+    /// Declares the topology the Consumer expects, mirroring the local RabbitMQ definitions.
     /// </summary>
-    private static void EnsureRabbitQueuesExist(RabbitMqContainer rabbitMqContainer)
+    private static void EnsureRabbitTopology(RabbitMqContainer rabbitMqContainer)
     {
         var factory = new ConnectionFactory { Uri = new Uri(rabbitMqContainer.GetConnectionString()) };
         using var connection = factory.CreateConnection();
         using var channel = connection.CreateModel();
 
-        // NOTE: All params nescessary for queues to live through test lifecycle.
-        channel.QueueDeclare(queue: "todo-message", durable: true, exclusive: false, autoDelete: false, arguments: null);
-        channel.QueueDeclare(queue: "todo-message-dl", durable: true, exclusive: false, autoDelete: false, arguments: null);
+        // Single source of truth for the topology, so the test broker can't drift from the app.
+        Consumer.RabbitTopology.EnsureTopology(channel, new Consumer.RabbitOptions());
     }
+
+    // Mirrors the Consumer's RabbitOptions defaults, which are the single source of truth for the topology names.
+    private static readonly Consumer.RabbitOptions RabbitOptionsDefaults = new();
+
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+
+    private (IConnection Connection, IModel Channel) CreateRabbitChannel()
+    {
+        var rabbitMqContainer = RabbitMqContainer
+            ?? throw new InvalidOperationException(
+                "TestRuntime has not been initialized. Call InitializeAsync() before using RabbitMQ.");
+
+        var factory = new ConnectionFactory { Uri = new Uri(rabbitMqContainer.GetConnectionString()) };
+        var connection = factory.CreateConnection();
+        return (connection, connection.CreateModel());
+    }
+
+    private static void PublishMessage(IModel channel, string exchange, string routingKey, InsertTodo message)
+        => channel.BasicPublish(
+            exchange: exchange,
+            routingKey: routingKey,
+            basicProperties: null,
+            body: Encoding.UTF8.GetBytes(JsonSerializer.Serialize(message, JsonOptions)));
 
     /// <summary>
     /// Publishes an <see cref="InsertTodo"/> message to the <c>todo-message</c> queue,
@@ -205,19 +227,75 @@ public class TestRuntime : IAsyncDisposable
     /// </summary>
     public void PublishTodoItemToQueue(string title, string description, DateTime dueDate)
     {
-        var rabbitMqContainer = RabbitMqContainer
-            ?? throw new InvalidOperationException(
-                "TestRuntime has not been initialized. Call InitializeAsync() before publishing to RabbitMQ.");
+        var (connection, channel) = CreateRabbitChannel();
+        using (connection)
+        using (channel)
+        {
+            PublishMessage(channel, RabbitOptionsDefaults.ExchangeName, RabbitOptionsDefaults.QueueName, new InsertTodo(title, description, dueDate));
+        }
+    }
 
-        var factory = new ConnectionFactory { Uri = new Uri(rabbitMqContainer.GetConnectionString()) };
-        using var connection = factory.CreateConnection();
-        using var channel = connection.CreateModel();
+    /// <summary>
+    /// Publishes a message with a null title, which the Consumer's validation rejects,
+    /// so it deterministically fails and is dead lettered.
+    /// </summary>
+    public void PublishPoisonTodoItemToQueue(string description, DateTime dueDate)
+    {
+        var (connection, channel) = CreateRabbitChannel();
+        using (connection)
+        using (channel)
+        {
+            PublishMessage(channel, RabbitOptionsDefaults.ExchangeName, RabbitOptionsDefaults.QueueName, new InsertTodo(null, description, dueDate));
+        }
+    }
 
-        var message = new InsertTodo(title, description, dueDate);
-        var json = JsonSerializer.Serialize(message, new JsonSerializerOptions(JsonSerializerDefaults.Web));
-        var body = Encoding.UTF8.GetBytes(json);
+    public int GetDeadLetterMessageCount()
+    {
+        var (connection, channel) = CreateRabbitChannel();
+        using (connection)
+        using (channel)
+        {
+            return (int)channel.QueueDeclarePassive(queue: RabbitOptionsDefaults.DeadLetterQueueName).MessageCount;
+        }
+    }
 
-        channel.BasicPublish(exchange: string.Empty, routingKey: "todo-message", basicProperties: null, body: body);
+    private readonly object _deadLetterLock = new();
+    private readonly List<string> _deadLetterBuffer = new List<string>();
+
+    /// <summary>
+    /// Drains the dead letter queue, adds to the memory buffer and returns a snapshot of its contents.
+    /// </summary>
+    public IEnumerable<string> FetchDeadLetterQueue()
+    {
+        var (connection, channel) = CreateRabbitChannel();
+        using (connection)
+        using (channel)
+        {
+            while (channel.BasicGet(queue: RabbitOptionsDefaults.DeadLetterQueueName, autoAck: true) is { } result)
+            {
+                var payload = Encoding.UTF8.GetString(result.Body.ToArray());
+                lock (_deadLetterLock)
+                {
+                    _deadLetterBuffer.Add(payload);
+                }
+            }
+        }
+
+        lock (_deadLetterLock)
+        {
+            return _deadLetterBuffer.ToArray();
+        }
+    }
+
+    /// <summary>
+    /// Remove an item from the dead letter queue once it has been asserted against.
+    /// </summary>
+    public void PurgeFromDLQ(string entity)
+    {
+        lock (_deadLetterLock)
+        {
+            _deadLetterBuffer.Remove(entity);
+        }
     }
 
     private static WebApplicationFactory<Worker.Program> ConfigureSubjectWorker(PostgreSqlContainer postgresContainer, AzuriteContainer azuriteContainer)
@@ -264,6 +342,9 @@ public class TestRuntime : IAsyncDisposable
                         { "ConnectionStrings:PostgresDb", postgresContainer.GetConnectionString() },
                         { "RabbitMQ:ConnectionString", rabbitMqContainer.GetConnectionString() },
                         { "RabbitMQ:QueueName", "todo-message" },
+
+                        // Tests invoke the re-drive explicitly via DlqReDriveService, so the scheduled loop must stay off.
+                        { "RabbitMQ:ReDriveEnabled", "false" },
                     };
 
                     b.Add(config);
