@@ -19,7 +19,10 @@
     <PackageReference Include="Testcontainers.PostgreSql" Version="4.12.0" />
     <PackageReference Include="Testcontainers.RabbitMq" Version="4.12.0" />
     <PackageReference Include="RabbitMQ.Client" Version="7.2.2" />
-    
+    <!-- Pins for vulnerable transitives pulled in by Testcontainers -->
+    <PackageReference Include="Scriban.Signed" Version="7.4.0" />
+    <PackageReference Include="SSH.NET" Version="2026.0.0" />
+
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.0.0" />
     <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.0.4" />
     <PackageReference Include="WireMock.Net" Version="2.11.0" />
