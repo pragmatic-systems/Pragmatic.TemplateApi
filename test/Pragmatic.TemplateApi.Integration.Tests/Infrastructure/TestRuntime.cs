@@ -95,8 +95,10 @@ public class TestRuntime : IAsyncDisposable
         WireMockContainer = wireMockContainer;
 
         // Configure Azurite (Blob)
+        // --skipApiVersionCheck: Azurite can't verify the newest Storage SDK API versions, so allow them through.
         var azuriteContainer = new AzuriteBuilder("mcr.microsoft.com/azure-storage/azurite:3.37.0")
             .WithAutoRemove(true)
+            .WithCommand("--skipApiVersionCheck")
             .Build();
         AzuriteContainer = azuriteContainer;
 
