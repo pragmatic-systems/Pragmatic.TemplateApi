@@ -131,7 +131,14 @@ public sealed class TodoMessageConsumer : BackgroundService
 
         if (_connection is not null)
         {
-            _connection.Close();
+            try
+            {
+                _connection.Close();
+            }
+            catch (Exception)
+            {
+                // Swallow — the connection may already be in a closed/disposed state
+            }
         }
 
         return base.StopAsync(cancellationToken);
