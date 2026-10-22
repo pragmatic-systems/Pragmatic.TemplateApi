@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Security.Claims;
 using System.Threading.RateLimiting;
 using System.Threading.Tasks;
@@ -16,7 +17,7 @@ using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Protocols;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.IdentityModel.Tokens;
-using Microsoft.OpenApi.Models;
+using Microsoft.OpenApi;
 using Pragmatic.TemplateApi.Api.Auth;
 using Pragmatic.TemplateApi.Instrumentation;
 
@@ -40,19 +41,15 @@ public static class ConfigurationExtensions
 
             options.AddSecurityDefinition("Bearer", securityScheme);
 
-            var securityRequirement = new OpenApiSecurityRequirement();
-            securityRequirement.Add(
-                new OpenApiSecurityScheme
-                {
-                    Reference = new OpenApiReference
-                    {
-                        Type = ReferenceType.SecurityScheme,
-                        Id = "Bearer",
-                    },
-                },
-                Array.Empty<string>());
+            options.AddSecurityRequirement(doc =>
+            {
+                var securityRequirement = new OpenApiSecurityRequirement();
+                securityRequirement.Add(
+                    new OpenApiSecuritySchemeReference("Bearer", doc),
+                    new List<string>());
 
-            options.AddSecurityRequirement(securityRequirement);
+                return securityRequirement;
+            });
         });
 
         return services;
