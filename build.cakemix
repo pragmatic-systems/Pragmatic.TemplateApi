@@ -5,10 +5,6 @@
     "./src/Pragmatic.TemplateApi.Worker/Dockerfile",
     "./src/Pragmatic.TemplateApi.Consumer/Dockerfile"
   ],
-  "Tests": [
-    "./test/Pragmatic.TemplateApi.IntegrationTests/Pragmatic.TemplateApi.IntegrationTests.csproj",
-    "./test/Pragmatic.TemplateApi.UnitTests/Pragmatic.TemplateApi.UnitTests.csproj"
-  ],
   "Benchmarks": [
   ],
   "ApiSpecs": {
