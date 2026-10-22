@@ -1,4 +1,5 @@
 ﻿using Azure.Storage.Blobs;
+using FluentValidation;
 using Hangfire;
 using Hangfire.PostgreSql;
 using Microsoft.AspNetCore.Builder;
@@ -9,6 +10,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Pragmatic.CQRS;
+using Pragmatic.TemplateApi.Core.Handlers;
 using Pragmatic.TemplateApi.Core.Validators;
 using Pragmatic.TemplateApi.Database;
 using Pragmatic.TemplateApi.Instrumentation.HostedServices;
@@ -92,6 +94,12 @@ public static class ConfigurationExtensions
         });
 
         return app;
+    }
+
+    public static IServiceCollection WithValidators(this IServiceCollection services)
+    {
+        services.AddSingleton(typeof(IValidator<InsertTodo>), typeof(InsertTodoValidator));
+        return services;
     }
 
     public static IServiceCollection WithHangfire(this IServiceCollection services, IConfiguration configuration)

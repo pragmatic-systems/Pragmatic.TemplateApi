@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Pragmatic.CQRS;
 using Pragmatic.TemplateApi.Core.Handlers;
+using Pragmatic.TemplateApi.Core.Model;
 using Pragmatic.TemplateApi.Instrumentation;
 
 namespace Pragmatic.TemplateApi.Api.Controllers;
@@ -18,7 +19,7 @@ namespace Pragmatic.TemplateApi.Api.Controllers;
 public class TodoListController : ControllerBase
 {
     private readonly IMediator _mediator;
-    private BlobContainerClient _blobClient;
+    private readonly BlobContainerClient _blobClient;
 
     public TodoListController(IMediator mediator, BlobContainerClient blobClient)
     {
@@ -70,10 +71,7 @@ public class TodoListController : ControllerBase
         BackgroundJob.Enqueue<CsvImportJobHandler>(
             handler => handler.ImportCsv(blobName));
 
-        return Ok(new
-        {
-            BlobName = blobName,
-            Message = "CSV uploaded and queued for import.",
-        });
+        var response = new CsvUploadResult(blobName, "CSV uploaded and queued for import.");
+        return Ok(response);
     }
 }

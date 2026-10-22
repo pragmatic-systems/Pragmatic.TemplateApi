@@ -1,0 +1,73 @@
+{
+  "users": [
+    {
+      "name": "local",
+      "password": "local",
+      "tags": [ "administrator" ]
+    }
+  ],
+  "vhosts": [ { "name": "/" } ],
+  "permissions": [
+    {
+      "user": "local",
+      "vhost": "/",
+      "configure": ".*",
+      "write": ".*",
+      "read": ".*"
+    }
+  ],
+  "exchanges": [
+    {
+      "name": "todo-message",
+      "vhost": "/",
+      "type": "direct",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false
+    },
+    {
+      "name": "todo-message-dlx",
+      "vhost": "/",
+      "type": "direct",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false
+    }
+  ],
+  "queues": [
+    {
+      "name": "todo-message",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-dead-letter-exchange": "todo-message-dlx",
+        "x-dead-letter-routing-key": "todo-message-dl"
+      }
+    },
+    {
+      "name": "todo-message-dl",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false
+    }
+  ],
+  "bindings": [
+    {
+      "vhost": "/",
+      "source": "todo-message",
+      "vkind": "exchange",
+      "destination": "todo-message",
+      "dkind": "queue",
+      "routing_key": "todo-message"
+    },
+    {
+      "vhost": "/",
+      "source": "todo-message-dlx",
+      "vkind": "exchange",
+      "destination": "todo-message-dl",
+      "dkind": "queue",
+      "routing_key": "todo-message-dl"
+    }
+  ]
+}

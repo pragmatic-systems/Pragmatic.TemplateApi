@@ -2,7 +2,7 @@
 // ADDINS
 ///////////////////////////////////////////////////////////////////////////////
 
-#addin nuget:?package=Pragmatic.CakeCI&version=1.0.1
+#addin nuget:?package=Pragmatic.CakeCI&version=1.0.3
 
 ///////////////////////////////////////////////////////////////////////////////
 // ARGUMENTS
@@ -49,11 +49,11 @@ var packagesFolder = System.IO.Path.Combine(artifactsFolder, "packages");
 ///////////////////////////////////////////////////////////////////////////////
 Setup(context =>
 {
-	buildManifest = LoadBuildManifest(cakeMixFile);
+    buildManifest = LoadBuildManifest(cakeMixFile);
 
-	// Clean artifacts
-	if (System.IO.Directory.Exists(artifactsFolder))
-		System.IO.Directory.Delete(artifactsFolder, true);
+    // Clean artifacts
+    if (System.IO.Directory.Exists(artifactsFolder))
+        System.IO.Directory.Delete(artifactsFolder, true);
 });
 
 Teardown(context =>
@@ -65,67 +65,68 @@ Teardown(context =>
 // Tasks
 ///////////////////////////////////////////////////////////////////////////////
 Task("__Version")
-	.Does(() => versionNumber = CiVersion(versionNumber));
+    .Does(() => versionNumber = CiVersion(versionNumber));
 
 Task("__LintCheck")
-	.Does(() => CiLint());
+    .Does(() => CiLint());
 
 Task("__ValidateSonarArgs")
-	.Does(() => sonarArgs.Validate());
+    .Does(() => sonarArgs.Validate());
 
 Task("__ValidateNugetArgs")
-	.Does(() => nugetArgs.Validate());
+    .Does(() => nugetArgs.Validate());
 
 Task("__ValidateDockerArgs")
-	.Does(() => containerArgs.Validate());
+    .Does(() => containerArgs.Validate());
 
 Task("__BeginSonarScan")
-	.IsDependentOn("__ValidateSonarArgs")
-	.Does(() => CiSonarScannerBegin(sonarArgs, artifactsFolder));
+    .IsDependentOn("__ValidateSonarArgs")
+    .Does(() => CiSonarScannerBegin(sonarArgs, artifactsFolder));
 
 ///////////////////////////////////////////////////////////////////////////////
 // Public Tasks
 ///////////////////////////////////////////////////////////////////////////////
 Task("BuildAndTest")
-	.Does(() => CiTest());
+    .Does(() => CiTest());
 
 Task("BuildAndBenchmark")
-	.Does(() => CiBenchmark());
+    .Does(() => CiBenchmark(buildManifest));
 
 Task("BuildAndSonarScan")
-	.IsDependentOn("__LintCheck")
-	.IsDependentOn("__BeginSonarScan")
-	.Does(() =>
-	{
-		try
-		{
-			CiTest();
-			CiBenchmark();
-		}
-		finally
-		{
-			CiSonarScannerEnd(sonarArgs);
-		}
-	});
+    .IsDependentOn("__LintCheck")
+    .IsDependentOn("__BeginSonarScan")
+    .Does(() =>
+    {
+        try
+        {
+            CiTest();
+        }
+        finally
+        {
+            CiSonarScannerEnd(sonarArgs);
+        }
+
+        CiBenchmark(buildManifest);
+    });
 
 Task("NugetPackAndPush")
-	.IsDependentOn("__LintCheck")
-	.IsDependentOn("__ValidateNugetArgs")
-	.IsDependentOn("__Version")
-	.IsDependentOn("__BeginSonarScan")
-	.Does(() =>
-	{
-		try
-		{
-			CiTest();
-			CiBenchmark();
-			CiNugetPack(buildManifest, packagesFolder, versionNumber);
-		}
-		finally
-		{
-			CiSonarScannerEnd(sonarArgs);
-		}
-
+    .IsDependentOn("__LintCheck")
+    .IsDependentOn("__ValidateNugetArgs")
+    .IsDependentOn("__Version")
+    .IsDependentOn("__BeginSonarScan")
+    .Does(() =>
+    {
+        try
+        {
+            CiTest();
+            CiNugetPack(buildManifest, packagesFolder, versionNumber);
+        }
+        finally
+        {
+            CiSonarScannerEnd(sonarArgs);
+        }
+        
+    CiBenchmark(buildManifest);
 		CiNugetPush(nugetArgs, packagesFolder);
 	});
 
@@ -136,78 +137,80 @@ Task("LocalNugetPackAndPush")
 	.Does(() =>
 	{
 		CiTest();
-		CiBenchmark();
+		CiBenchmark(buildManifest);
 		CiNugetPack(buildManifest, packagesFolder, versionNumber);
 		CiNugetPush(nugetArgs, packagesFolder);
 	});
 
 Task("DockerPackAndPush")
-	.IsDependentOn("__LintCheck")
-	.IsDependentOn("__ValidateDockerArgs")
-	.IsDependentOn("__Version")
-	.IsDependentOn("__BeginSonarScan")
-	.Does(() =>
-	{
-		try
-		{
-			CiTest();
-			CiBenchmark();
-			CiDockerBuild(buildManifest, containerArgs, versionNumber);
-		}
-		finally
-		{
-			CiSonarScannerEnd(sonarArgs);
-		}
+    .IsDependentOn("__LintCheck")
+    .IsDependentOn("__ValidateDockerArgs")
+    .IsDependentOn("__Version")
+    .IsDependentOn("__BeginSonarScan")
+    .Does(() =>
+    {
+        try
+        {
+            CiTest();
+            CiDockerBuild(buildManifest, containerArgs, versionNumber);
+        }
+        finally
+        {
+            CiSonarScannerEnd(sonarArgs);
+        }
+        
+        CiBenchmark(buildManifest);
 
-		try
-		{
-			CiDockerLogin(containerArgs);
-			CiDockerPush(buildManifest, containerArgs, versionNumber);
-		}
-		finally
-		{
-			CiDockerLogout(containerArgs);
-		}
-	});
+        try
+        {
+            CiDockerLogin(containerArgs);
+            CiDockerPush(buildManifest, containerArgs, versionNumber);
+        }
+        finally
+        {
+            CiDockerLogout(containerArgs);
+        }
+    });
 
 Task("FullPackAndPush")
-	.IsDependentOn("__LintCheck")
-	.IsDependentOn("__ValidateNugetArgs")
-	.IsDependentOn("__ValidateDockerArgs")
-	.IsDependentOn("__Version")
-	.IsDependentOn("__BeginSonarScan")
-	.Does(() =>
-	{
-		try
-		{
-			CiTest();
-			CiBenchmark();
-			CiNugetPack(buildManifest, packagesFolder, versionNumber);
-			CiDockerBuild(buildManifest, containerArgs, versionNumber);
-		}
-		finally
-		{
-			CiSonarScannerEnd(sonarArgs);
-		}
-		
-		try
-		{
-			CiDockerLogin(containerArgs);
-			CiDockerPush(buildManifest, containerArgs, versionNumber);
-			CiNugetPush(nugetArgs, packagesFolder);
-		}
-		finally
-		{
-			CiDockerLogout(containerArgs);
-		}
-	});
+    .IsDependentOn("__LintCheck")
+    .IsDependentOn("__ValidateNugetArgs")
+    .IsDependentOn("__ValidateDockerArgs")
+    .IsDependentOn("__Version")
+    .IsDependentOn("__BeginSonarScan")
+    .Does(() =>
+    {
+        try
+        {
+            CiTest();
+            CiNugetPack(buildManifest, packagesFolder, versionNumber);
+            CiDockerBuild(buildManifest, containerArgs, versionNumber);
+        }
+        finally
+        {
+            CiSonarScannerEnd(sonarArgs);
+        }
+        
+        CiBenchmark(buildManifest);
+
+        try
+        {
+            CiDockerLogin(containerArgs);
+            CiDockerPush(buildManifest, containerArgs, versionNumber);
+            CiNugetPush(nugetArgs, packagesFolder);
+        }
+        finally
+        {
+            CiDockerLogout(containerArgs);
+        }
+    });
 
 Task("Default")
-	.IsDependentOn("__LintCheck")
-	.Does(() =>
-	{
-		CiTest();
-		CiBenchmark();
-	});
+    .IsDependentOn("__LintCheck")
+    .Does(() =>
+    {
+        CiTest();
+        CiBenchmark(buildManifest);
+    });
 
 RunTarget(target);
