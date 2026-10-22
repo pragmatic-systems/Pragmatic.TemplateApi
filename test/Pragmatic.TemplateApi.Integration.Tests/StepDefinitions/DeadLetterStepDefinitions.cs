@@ -16,9 +16,9 @@ public sealed class DeadLetterStepDefinitions
     }
 
     [When("We publish a poison todo item to the queue")]
-    public void WePublishAPoisonTodoItemToTheQueue()
+    public Task WePublishAPoisonTodoItemToTheQueue()
     {
-        _testContext.PublishPoisonTodoItemToQueue();
+        return _testContext.PublishPoisonTodoItemToQueue();
     }
 
     [Then("The dead letter queue should contain the poison message")]
@@ -31,7 +31,9 @@ public sealed class DeadLetterStepDefinitions
                     .Select(i => TimeSpan.FromSeconds(1)))
             .ExecuteAsync(async () =>
             {
-                var payload = _testContext.FetchDeadLetterQueue()
+                var queue = await _testContext.FetchDeadLetterQueue();
+
+                var payload = queue
                     .FirstOrDefault(p => p.Contains(_testContext.PoisonTodoDescription))
                     ?? throw new InvalidOperationException(
                         $"Dead letter queue does not contain a message with description '{_testContext.PoisonTodoDescription}'.");

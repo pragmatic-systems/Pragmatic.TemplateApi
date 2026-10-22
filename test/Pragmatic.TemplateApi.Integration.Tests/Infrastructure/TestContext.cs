@@ -173,12 +173,12 @@ public class TestContext
     /// Publishes a todo item to the RabbitMQ <c>todo-message</c> queue with a unique title.
     /// The title is stored in <see cref="PublishedTodoTitle"/> so it can be matched in the list.
     /// </summary>
-    public void PublishTodoItemToQueue()
+    public async Task PublishTodoItemToQueue()
     {
         var title = $"Queue-Imported-Task-{Guid.NewGuid():N}";
         PublishedTodoTitle = title;
 
-        _testRuntime.PublishTodoItemToQueue(
+        await _testRuntime.PublishTodoItemToQueue(
             title,
             "Imported via the RabbitMQ message queue.",
             DateTime.UtcNow.Date.AddDays(1));
@@ -188,19 +188,16 @@ public class TestContext
     /// Publishes a poison message (null title) to the RabbitMQ queue.
     /// The Consumer's validation rejects it, so it is dead lettered.
     /// </summary>
-    public void PublishPoisonTodoItemToQueue()
+    public async Task PublishPoisonTodoItemToQueue()
     {
         PoisonTodoDescription = $"Poison message {Guid.NewGuid():N}";
 
-        _testRuntime.PublishPoisonTodoItemToQueue(
+        await _testRuntime.PublishPoisonTodoItemToQueue(
             PoisonTodoDescription,
             DateTime.UtcNow.Date.AddDays(1));
     }
 
-    public int GetDeadLetterMessageCount()
-        => _testRuntime.GetDeadLetterMessageCount();
-
-    public IEnumerable<string> FetchDeadLetterQueue()
+    public Task<IEnumerable<string>> FetchDeadLetterQueue()
         => _testRuntime.FetchDeadLetterQueue();
 
     public void PurgeFromDLQ(string entity)

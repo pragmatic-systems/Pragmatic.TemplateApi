@@ -113,7 +113,7 @@ public class TestRuntime : IAsyncDisposable
         await azuriteContainer.StartAsync();
         await rabbitMqContainer.StartAsync();
 
-        EnsureRabbitTopology(rabbitMqContainer);
+        await EnsureRabbitTopology(rabbitMqContainer);
 
         // Create SSL Certificate
         SigningCertificate = PemCertificate.Create();
@@ -188,14 +188,14 @@ public class TestRuntime : IAsyncDisposable
     /// <summary>
     /// Declares the topology the Consumer expects, mirroring the local RabbitMQ definitions.
     /// </summary>
-    private static void EnsureRabbitTopology(RabbitMqContainer rabbitMqContainer)
+    private static async Task EnsureRabbitTopology(RabbitMqContainer rabbitMqContainer)
     {
         var factory = new ConnectionFactory { Uri = new Uri(rabbitMqContainer.GetConnectionString()) };
-        using var connection = factory.CreateConnection();
-        using var channel = connection.CreateModel();
+        await using var connection = await factory.CreateConnectionAsync();
+        await using var channel = await connection.CreateChannelAsync();
 
         // Single source of truth for the topology, so the test broker can't drift from the app.
-        Consumer.RabbitTopology.EnsureTopology(channel, new Consumer.RabbitOptions());
+        await Consumer.RabbitTopology.EnsureTopologyAsync(channel, new Consumer.RabbitOptions());
     }
 
     // Mirrors the Consumer's RabbitOptions defaults, which are the single source of truth for the topology names.
@@ -203,35 +203,34 @@ public class TestRuntime : IAsyncDisposable
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
-    private (IConnection Connection, IModel Channel) CreateRabbitChannel()
+    private async Task<(IConnection Connection, IChannel Channel)> CreateRabbitChannel()
     {
         var rabbitMqContainer = RabbitMqContainer
             ?? throw new InvalidOperationException(
                 "TestRuntime has not been initialized. Call InitializeAsync() before using RabbitMQ.");
 
         var factory = new ConnectionFactory { Uri = new Uri(rabbitMqContainer.GetConnectionString()) };
-        var connection = factory.CreateConnection();
-        return (connection, connection.CreateModel());
+        var connection = await factory.CreateConnectionAsync();
+        return (connection, await connection.CreateChannelAsync());
     }
 
-    private static void PublishMessage(IModel channel, string exchange, string routingKey, InsertTodo message)
-        => channel.BasicPublish(
+    private static ValueTask PublishMessage(IChannel channel, string exchange, string routingKey, InsertTodo message)
+        => channel.BasicPublishAsync(
             exchange: exchange,
             routingKey: routingKey,
-            basicProperties: null,
             body: Encoding.UTF8.GetBytes(JsonSerializer.Serialize(message, JsonOptions)));
 
     /// <summary>
     /// Publishes an <see cref="InsertTodo"/> message to the <c>todo-message</c> queue,
     /// acting as an external producer so the Consumer can pick it up and insert it.
     /// </summary>
-    public void PublishTodoItemToQueue(string title, string description, DateTime dueDate)
+    public async Task PublishTodoItemToQueue(string title, string description, DateTime dueDate)
     {
-        var (connection, channel) = CreateRabbitChannel();
-        using (connection)
-        using (channel)
+        var (connection, channel) = await CreateRabbitChannel();
+        await using (connection)
+        await using (channel)
         {
-            PublishMessage(channel, RabbitOptionsDefaults.ExchangeName, RabbitOptionsDefaults.QueueName, new InsertTodo(title, description, dueDate));
+            await PublishMessage(channel, RabbitOptionsDefaults.ExchangeName, RabbitOptionsDefaults.QueueName, new InsertTodo(title, description, dueDate));
         }
     }
 
@@ -239,23 +238,13 @@ public class TestRuntime : IAsyncDisposable
     /// Publishes a message with a null title, which the Consumer's validation rejects,
     /// so it deterministically fails and is dead lettered.
     /// </summary>
-    public void PublishPoisonTodoItemToQueue(string description, DateTime dueDate)
+    public async Task PublishPoisonTodoItemToQueue(string description, DateTime dueDate)
     {
-        var (connection, channel) = CreateRabbitChannel();
-        using (connection)
-        using (channel)
+        var (connection, channel) = await CreateRabbitChannel();
+        await using (connection)
+        await using (channel)
         {
-            PublishMessage(channel, RabbitOptionsDefaults.ExchangeName, RabbitOptionsDefaults.QueueName, new InsertTodo(null, description, dueDate));
-        }
-    }
-
-    public int GetDeadLetterMessageCount()
-    {
-        var (connection, channel) = CreateRabbitChannel();
-        using (connection)
-        using (channel)
-        {
-            return (int)channel.QueueDeclarePassive(queue: RabbitOptionsDefaults.DeadLetterQueueName).MessageCount;
+            await PublishMessage(channel, RabbitOptionsDefaults.ExchangeName, RabbitOptionsDefaults.QueueName, new InsertTodo(null, description, dueDate));
         }
     }
 
@@ -265,13 +254,13 @@ public class TestRuntime : IAsyncDisposable
     /// <summary>
     /// Drains the dead letter queue, adds to the memory buffer and returns a snapshot of its contents.
     /// </summary>
-    public IEnumerable<string> FetchDeadLetterQueue()
+    public async Task<IEnumerable<string>> FetchDeadLetterQueue()
     {
-        var (connection, channel) = CreateRabbitChannel();
-        using (connection)
-        using (channel)
+        var (connection, channel) = await CreateRabbitChannel();
+        await using (connection)
+        await using (channel)
         {
-            while (channel.BasicGet(queue: RabbitOptionsDefaults.DeadLetterQueueName, autoAck: true) is { } result)
+            while (await channel.BasicGetAsync(queue: RabbitOptionsDefaults.DeadLetterQueueName, autoAck: true) is { } result)
             {
                 var payload = Encoding.UTF8.GetString(result.Body.ToArray());
                 lock (_deadLetterLock)

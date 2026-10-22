@@ -21,7 +21,7 @@ public sealed class TodoMessageConsumer : BackgroundService
     private readonly ILogger<TodoMessageConsumer> _logger;
     private readonly IServiceScopeFactory _scopeFactory;
     private IConnection? _connection;
-    private IModel? _channel;
+    private IChannel? _channel;
 
     public TodoMessageConsumer(
         IOptions<RabbitOptions> options,
@@ -42,18 +42,17 @@ public sealed class TodoMessageConsumer : BackgroundService
         {
             Uri = new Uri(connectionString),
             AutomaticRecoveryEnabled = true,
-            TopologyRecoveryEnabled = true,
-            DispatchConsumersAsync = true
+            TopologyRecoveryEnabled = true
         };
 
-        _connection = factory.CreateConnection();
-        _channel = _connection.CreateModel();
+        _connection = await factory.CreateConnectionAsync();
+        _channel = await _connection.CreateChannelAsync();
 
-        _channel.BasicQos(prefetchSize: 0, prefetchCount: (ushort)_options.PrefetchCount, global: false);
+        await _channel.BasicQosAsync(prefetchSize: 0, prefetchCount: (ushort)_options.PrefetchCount, global: false);
 
         var consumer = new AsyncEventingBasicConsumer(_channel);
-        consumer.Received += OnMessageReceived;
-        _channel.BasicConsume(queue: _options.QueueName, autoAck: false, consumer: consumer);
+        consumer.ReceivedAsync += OnMessageReceived;
+        await _channel.BasicConsumeAsync(queue: _options.QueueName, autoAck: false, consumer: consumer);
 
         _logger.LogInformation(
             "Started consuming from queue '{Queue}' (prefetch: {PrefetchCount})",
@@ -92,12 +91,12 @@ public sealed class TodoMessageConsumer : BackgroundService
             }
 
             await ProcessMessageAsync(message, eventArgs.Redelivered);
-            _channel!.BasicAck(deliveryTag: eventArgs.DeliveryTag, multiple: false);
+            await _channel!.BasicAckAsync(deliveryTag: eventArgs.DeliveryTag, multiple: false);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to process message (deliveryTag: {DeliveryTag}), nacking without requeue", eventArgs.DeliveryTag);
-            _channel!.BasicNack(deliveryTag: eventArgs.DeliveryTag, multiple: false, requeue: false);
+            await _channel!.BasicNackAsync(deliveryTag: eventArgs.DeliveryTag, multiple: false, requeue: false);
         }
     }
 
@@ -137,18 +136,18 @@ public sealed class TodoMessageConsumer : BackgroundService
         return value.Length <= MaxLoggedTextLength ? value : value[..MaxLoggedTextLength] + "…";
     }
 
-    public override Task StopAsync(CancellationToken cancellationToken)
+    public override async Task StopAsync(CancellationToken cancellationToken)
     {
         if (_channel is not null)
         {
-            _channel.Close();
+            await _channel.CloseAsync();
         }
 
         if (_connection is not null)
         {
             try
             {
-                _connection.Close();
+                await _connection.CloseAsync();
             }
             catch (Exception)
             {
@@ -156,6 +155,6 @@ public sealed class TodoMessageConsumer : BackgroundService
             }
         }
 
-        return base.StopAsync(cancellationToken);
+        await base.StopAsync(cancellationToken);
     }
 }
