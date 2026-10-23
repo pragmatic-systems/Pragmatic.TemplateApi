@@ -106,17 +106,12 @@ public static class ConfigurationExtensions
 
     public static IServiceCollection WithHangfire(this IServiceCollection services, IConfiguration configuration)
     {
-        // NOTE: There is no lazy load here for PostgreSQL - if the DB does not exist at this point it will fall over.
         services.AddHangfire(hfConfig =>
         {
             var connection = configuration.GetConnectionString("PostgresDb");
 
-            ArgumentException.ThrowIfNullOrEmpty(connection);
-
-            Migrator.EnsureDb(connection);
-
-            hfConfig
-                .UsePostgreSqlStorage(connection);
+            hfConfig.UsePostgreSqlStorage(bootstrapper =>
+                bootstrapper.UseNpgsqlConnection(connection));
         });
 
         return services;
