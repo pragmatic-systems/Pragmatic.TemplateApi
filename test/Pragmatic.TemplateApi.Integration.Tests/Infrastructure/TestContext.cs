@@ -66,6 +66,19 @@ public class TestContext
         });
     }
 
+    /// <summary>
+    /// Issues a GET against the Consumer host (no authentication — its endpoints are not behind OIDC).
+    /// </summary>
+    public async Task GetConsumerAsync(string path)
+    {
+        using var client = _testRuntime.GetSubjectConsumer().CreateClient();
+        LastResponse = await RetryPolicy.ExecuteAsync(async () =>
+        {
+            var result = await client.GetAsync(path);
+            return result;
+        });
+    }
+
     public async Task PostAsJsonAsync<T>(string path, T payload)
     {
         using var client = _testRuntime.GetSubjectApi().CreateClient();

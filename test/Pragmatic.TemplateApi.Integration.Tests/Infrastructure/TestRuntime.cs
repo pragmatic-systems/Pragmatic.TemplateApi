@@ -45,6 +45,10 @@ public class TestRuntime : IAsyncDisposable
         => SubjectApi ?? throw new InvalidOperationException(
             "TestRuntime has not been initialized. Call InitializeAsync() before using the subject API.");
 
+    public WebApplicationFactory<Consumer.Program> GetSubjectConsumer()
+        => SubjectConsumer ?? throw new InvalidOperationException(
+            "TestRuntime has not been initialized. Call InitializeAsync() before using the subject consumer.");
+
     public string GetJwtIssuer()
         => JwtIssuer ?? throw new InvalidOperationException(
             "TestRuntime has not been initialized. Call InitializeAsync() before getting JwtIssuer.");

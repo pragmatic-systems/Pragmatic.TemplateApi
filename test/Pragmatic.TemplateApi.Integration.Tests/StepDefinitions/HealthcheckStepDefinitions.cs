@@ -1,4 +1,5 @@
-﻿using Pragmatic.TemplateApi.Integration.Tests.Infrastructure;
+﻿using System.Text.Json;
+using Pragmatic.TemplateApi.Integration.Tests.Infrastructure;
 using Reqnroll;
 
 namespace Pragmatic.TemplateApi.Integration.Tests.StepDefinitions;
@@ -30,5 +31,11 @@ public sealed class HealthcheckStepDefinitions
     public async Task WeCallTheMetricsEndpoint()
     {
         await _testContext.GetAsync("_system/metrics");
+    }
+
+    [When("We call the consumer healthcheck endpoint")]
+    public async Task WeCallTheConsumerHealthcheckEndpoint()
+    {
+        await _testContext.GetConsumerAsync("_system/health");
     }
 }
