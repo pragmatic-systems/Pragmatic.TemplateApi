@@ -45,14 +45,14 @@ public sealed class TodoMessageConsumer : BackgroundService
             TopologyRecoveryEnabled = true
         };
 
-        _connection = await factory.CreateConnectionAsync();
-        _channel = await _connection.CreateChannelAsync();
+        _connection = await factory.CreateConnectionAsync(cancellationToken: stoppingToken);
+        _channel = await _connection.CreateChannelAsync(cancellationToken: stoppingToken);
 
-        await _channel.BasicQosAsync(prefetchSize: 0, prefetchCount: (ushort)_options.PrefetchCount, global: false);
+        await _channel.BasicQosAsync(prefetchSize: 0, prefetchCount: (ushort)_options.PrefetchCount, global: false, cancellationToken: stoppingToken);
 
         var consumer = new AsyncEventingBasicConsumer(_channel);
         consumer.ReceivedAsync += OnMessageReceived;
-        await _channel.BasicConsumeAsync(queue: _options.QueueName, autoAck: false, consumer: consumer);
+        await _channel.BasicConsumeAsync(queue: _options.QueueName, autoAck: false, consumer: consumer, cancellationToken: stoppingToken);
 
         _logger.LogInformation(
             "Started consuming from queue '{Queue}' (prefetch: {PrefetchCount})",
@@ -71,6 +71,7 @@ public sealed class TodoMessageConsumer : BackgroundService
 
     private async Task OnMessageReceived(object sender, BasicDeliverEventArgs eventArgs)
     {
+        var cancellationToken = eventArgs.CancellationToken;
         var body = Encoding.UTF8.GetString(eventArgs.Body.ToArray());
         var message = TryParseMessage(body);
 
@@ -90,13 +91,13 @@ public sealed class TodoMessageConsumer : BackgroundService
                 throw new FormatException("Message body is not a valid TodoMessage object.");
             }
 
-            await ProcessMessageAsync(message, eventArgs.Redelivered);
-            await _channel!.BasicAckAsync(deliveryTag: eventArgs.DeliveryTag, multiple: false);
+            await ProcessMessageAsync(message, eventArgs.Redelivered, cancellationToken);
+            await _channel!.BasicAckAsync(deliveryTag: eventArgs.DeliveryTag, multiple: false, cancellationToken: cancellationToken);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to process message (deliveryTag: {DeliveryTag}), nacking without requeue", eventArgs.DeliveryTag);
-            await _channel!.BasicNackAsync(deliveryTag: eventArgs.DeliveryTag, multiple: false, requeue: false);
+            await _channel!.BasicNackAsync(deliveryTag: eventArgs.DeliveryTag, multiple: false, requeue: false, cancellationToken: cancellationToken);
         }
     }
 
@@ -112,14 +113,14 @@ public sealed class TodoMessageConsumer : BackgroundService
         }
     }
 
-    private async Task ProcessMessageAsync(InsertTodo message, bool redelivered)
+    private async Task ProcessMessageAsync(InsertTodo message, bool redelivered, CancellationToken cancellationToken)
     {
         using var scope = _scopeFactory.CreateScope();
 
         // Queue messages don't get the API's model binding validation, so validate explicitly.
         // A failure here throws and the message is dead-lettered instead of inserted.
         var validator = scope.ServiceProvider.GetRequiredService<IValidator<InsertTodo>>();
-        var validation = await validator.ValidateAsync(message);
+        var validation = await validator.ValidateAsync(message, cancellationToken);
         if (!validation.IsValid)
         {
             throw new ValidationException(validation.Errors);
@@ -127,7 +128,7 @@ public sealed class TodoMessageConsumer : BackgroundService
 
         _logger.LogDebug("Processed message with {Title} / {Description})", message.Title, message.Description);
         var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
-        await mediator.Send(message, CancellationToken.None);
+        await mediator.Send(message, cancellationToken);
     }
 
     private static string Truncate(string? value)
@@ -140,14 +141,14 @@ public sealed class TodoMessageConsumer : BackgroundService
     {
         if (_channel is not null)
         {
-            await _channel.CloseAsync();
+            await _channel.CloseAsync(cancellationToken);
         }
 
         if (_connection is not null)
         {
             try
             {
-                await _connection.CloseAsync();
+                await _connection.CloseAsync(cancellationToken);
             }
             catch (Exception)
             {
