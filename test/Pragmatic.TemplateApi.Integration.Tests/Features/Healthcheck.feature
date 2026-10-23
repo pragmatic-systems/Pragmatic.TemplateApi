@@ -17,3 +17,8 @@ Scenario: Metrics
 Scenario: Consumer healthcheck
 	When We call the consumer healthcheck endpoint
 	Then The response should be 200 OK
+
+@healthcheck @worker
+Scenario: Worker healthcheck
+	When We call the worker healthcheck endpoint
+	Then The response should be 200 OK

@@ -49,6 +49,10 @@ public class TestRuntime : IAsyncDisposable
         => SubjectConsumer ?? throw new InvalidOperationException(
             "TestRuntime has not been initialized. Call InitializeAsync() before using the subject consumer.");
 
+    public WebApplicationFactory<Worker.Program> GetSubjectWorker()
+        => SubjectWorker ?? throw new InvalidOperationException(
+            "TestRuntime has not been initialized. Call InitializeAsync() before using the subject worker.");
+
     public string GetJwtIssuer()
         => JwtIssuer ?? throw new InvalidOperationException(
             "TestRuntime has not been initialized. Call InitializeAsync() before getting JwtIssuer.");
@@ -300,7 +304,7 @@ public class TestRuntime : IAsyncDisposable
         }
     }
 
-    private static WebApplicationFactory<Worker.Program> ConfigureSubjectWorker(PostgreSqlContainer postgresContainer, IContainer rustFsContainer)
+    private WebApplicationFactory<Worker.Program> ConfigureSubjectWorker(PostgreSqlContainer postgresContainer, IContainer rustFsContainer)
     {
         return new WebApplicationFactory<Worker.Program>()
             .WithWebHostBuilder(builder =>
@@ -314,6 +318,7 @@ public class TestRuntime : IAsyncDisposable
                     config.InitialData = new Dictionary<string, string?>
                     {
                         { "ConnectionStrings:PostgresDb", postgresContainer.GetConnectionString() },
+                        { "OpenIdConnect:Issuer", JwtIssuer },
                         { "Storage:Endpoint", $"http://{rustFsContainer.Hostname}:{rustFsContainer.GetMappedPublicPort(9000)}" },
                         { "Storage:AccessKeyId", "admin" },
                         { "Storage:SecretAccessKey", "secret" },
