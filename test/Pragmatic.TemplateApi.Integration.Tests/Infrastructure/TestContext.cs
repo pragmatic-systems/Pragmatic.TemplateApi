@@ -3,7 +3,6 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Security.Claims;
 using System.Text;
-using Azure.Storage.Blobs;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Polly;
 using Pragmatic.TemplateApi.Api.Auth;

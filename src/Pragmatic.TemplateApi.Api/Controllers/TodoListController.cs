@@ -1,12 +1,14 @@
 ﻿using System;
 using System.Threading;
 using System.Threading.Tasks;
-using Azure.Storage.Blobs;
+using Amazon.S3;
+using Amazon.S3.Model;
 using Hangfire;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.Options;
 using Pragmatic.CQRS;
 using Pragmatic.TemplateApi.Core.Handlers;
 using Pragmatic.TemplateApi.Core.Model;
@@ -19,12 +21,14 @@ namespace Pragmatic.TemplateApi.Api.Controllers;
 public class TodoListController : ControllerBase
 {
     private readonly IMediator _mediator;
-    private readonly BlobContainerClient _blobClient;
+    private readonly AmazonS3Client _s3;
+    private readonly StorageOptions _storage;
 
-    public TodoListController(IMediator mediator, BlobContainerClient blobClient)
+    public TodoListController(IMediator mediator, AmazonS3Client s3, IOptions<StorageOptions> storage)
     {
         _mediator = mediator;
-        _blobClient = blobClient;
+        _s3 = s3;
+        _storage = storage.Value;
     }
 
     [HttpGet("v1")]
@@ -60,18 +64,21 @@ public class TodoListController : ControllerBase
             return BadRequest("Only CSV files are supported.");
         }
 
-        var blobName = $"csv-imports/{Guid.NewGuid()}-{file.FileName}";
+        var objectKey = $"csv-imports/{Guid.NewGuid()}-{file.FileName}";
 
         using var stream = file.OpenReadStream();
-        var blobClient = _blobClient.GetBlobClient(blobName);
-
-        await blobClient.UploadAsync(stream, true);
+        await _s3.PutObjectAsync(new PutObjectRequest
+        {
+            BucketName = _storage.Bucket,
+            Key = objectKey,
+            InputStream = stream,
+        });
 
         // Queue the background job to process the CSV
         BackgroundJob.Enqueue<CsvImportJobHandler>(
-            handler => handler.ImportCsv(blobName));
+            handler => handler.ImportCsv(objectKey));
 
-        var response = new CsvUploadResult(blobName, "CSV uploaded and queued for import.");
+        var response = new CsvUploadResult(objectKey, "CSV uploaded and queued for import.");
         return Ok(response);
     }
 }

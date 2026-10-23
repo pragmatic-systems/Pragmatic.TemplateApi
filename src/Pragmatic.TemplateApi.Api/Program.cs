@@ -25,7 +25,7 @@ public class Program
             builder.Services.WithIngressConfig();
             builder.Services.WithSerilog(builder.Configuration, "Pragmatic.TemplateApi API");
             builder.Services.WithPostgres(builder.Configuration);
-            builder.Services.WithAzureBlobStorage(builder.Configuration);
+            builder.Services.WithS3Storage(builder.Configuration);
             builder.Services.WithValidators();
             builder.Services.WithMediatr();
             builder.Services.WithOpenIdConnect(builder.Configuration);

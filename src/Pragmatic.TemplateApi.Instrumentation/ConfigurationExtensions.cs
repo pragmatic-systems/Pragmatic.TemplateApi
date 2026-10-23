@@ -1,4 +1,5 @@
-﻿using Azure.Storage.Blobs;
+﻿using Amazon.Runtime;
+using Amazon.S3;
 using FluentValidation;
 using Hangfire;
 using Hangfire.PostgreSql;
@@ -9,6 +10,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Pragmatic.CQRS;
 using Pragmatic.TemplateApi.Core.Handlers;
 using Pragmatic.TemplateApi.Core.Validators;
@@ -139,19 +141,27 @@ public static class ConfigurationExtensions
         return services;
     }
 
-    public static IServiceCollection WithAzureBlobStorage(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection WithS3Storage(this IServiceCollection services, IConfiguration configuration)
     {
-        services.AddSingleton(provider =>
-            new BlobServiceClient(configuration.GetSection("Storage:ConnectionString").Value));
+        services.Configure<StorageOptions>(configuration.GetSection(StorageOptions.SectionName));
 
         services.AddSingleton(provider =>
         {
-            var client = provider.GetRequiredService<BlobServiceClient>();
-            var containerName = configuration.GetSection("Storage:ContainerName").Value ?? "uploads";
-            return client.GetBlobContainerClient(containerName);
+            var options = provider.GetRequiredService<IOptions<StorageOptions>>().Value;
+
+            ArgumentException.ThrowIfNullOrEmpty(options.Endpoint);
+
+            var config = new AmazonS3Config
+            {
+                ServiceURL = options.Endpoint,
+                AuthenticationRegion = options.Region,
+                ForcePathStyle = true,
+            };
+
+            return new AmazonS3Client(new BasicAWSCredentials(options.AccessKeyId, options.SecretAccessKey), config);
         });
 
-        services.AddHostedService<BlobContainerInitService>();
+        services.AddHostedService<BucketInitService>();
 
         return services;
     }

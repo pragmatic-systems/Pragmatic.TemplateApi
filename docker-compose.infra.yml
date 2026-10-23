@@ -68,16 +68,24 @@ services:
     networks:
       - local
 
-  local-azurite:
-    image: mcr.microsoft.com/azure-storage/azurite
-    container_name: local-azurite
+  local-rustfs:
+    # RustFS: S3 API on 9000, web console on 9001, data in /data (image pre-creates it, owned by UID 10001).
+    image: rustfs/rustfs:1.0.3
+    container_name: local-rustfs
     restart: always
     ports:
-      - "10000:10000"
+      - "9000:9000"
+      - "9001:9001"
     environment:
-      - AZURITE_ACCOUNTS=devstoreaccount1:BA==
+      - RUSTFS_ACCESS_KEY=admin
+      - RUSTFS_SECRET_KEY=secret
+      - RUSTFS_VOLUMES=/data
+    volumes:
+      - rustfs-data:/data
     networks:
       - local
 
 networks:
     local:
+volumes:
+    rustfs-data:

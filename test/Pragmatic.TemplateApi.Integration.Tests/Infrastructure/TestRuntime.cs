@@ -1,6 +1,7 @@
 ﻿using System.Text;
 using System.Text.Json;
-using Azure.Storage.Blobs;
+using DotNet.Testcontainers.Builders;
+using DotNet.Testcontainers.Containers;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -11,7 +12,6 @@ using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Pragmatic.TemplateApi.Core.Handlers;
 using Pragmatic.TemplateApi.Integration.Tests.Infrastructure.Auth;
 using RabbitMQ.Client;
-using Testcontainers.Azurite;
 using Testcontainers.PostgreSql;
 using Testcontainers.RabbitMq;
 using WireMock.Net.Testcontainers;
@@ -24,7 +24,7 @@ public class TestRuntime : IAsyncDisposable
 
     public PostgreSqlContainer? PostgresContainer { get; private set; }
 
-    public AzuriteContainer? AzuriteContainer { get; private set; }
+    public IContainer? RustFsContainer { get; private set; }
 
     public RabbitMqContainer? RabbitMqContainer { get; private set; }
 
@@ -61,8 +61,8 @@ public class TestRuntime : IAsyncDisposable
         if (PostgresContainer != null)
             await PostgresContainer.DisposeAsync();
 
-        if (AzuriteContainer != null)
-            await AzuriteContainer.DisposeAsync();
+        if (RustFsContainer != null)
+            await RustFsContainer.DisposeAsync();
 
         if (RabbitMqContainer != null)
             await RabbitMqContainer.DisposeAsync();
@@ -94,13 +94,17 @@ public class TestRuntime : IAsyncDisposable
             .Build();
         WireMockContainer = wireMockContainer;
 
-        // Configure Azurite (Blob)
-        // --skipApiVersionCheck: Azurite can't verify the newest Storage SDK API versions, so allow them through.
-        var azuriteContainer = new AzuriteBuilder("mcr.microsoft.com/azure-storage/azurite:3.37.0")
+        // Configure RustFS (S3 object store; S3 API on port 9000).
+        // The image pre-creates /data (owned by its UID 10001 user) and defaults to it as the sole volume.
+        const string rustFsImage = "rustfs/rustfs:1.0.3";
+        var rustFsContainer = new ContainerBuilder(rustFsImage)
+            .WithPortBinding(9000, true)
+            .WithEnvironment("RUSTFS_ACCESS_KEY", "admin")
+            .WithEnvironment("RUSTFS_SECRET_KEY", "secret")
+            .WithWaitStrategy(Wait.ForUnixContainer().UntilInternalTcpPortIsAvailable(9000))
             .WithAutoRemove(true)
-            .WithCommand("--skipApiVersionCheck")
             .Build();
-        AzuriteContainer = azuriteContainer;
+        RustFsContainer = rustFsContainer;
 
         // Configure RabbitMQ
         var rabbitMqContainer = new RabbitMqBuilder("rabbitmq:4.1-management")
@@ -112,7 +116,7 @@ public class TestRuntime : IAsyncDisposable
 
         await postgresContainer.StartAsync();
         await wireMockContainer.StartAsync();
-        await azuriteContainer.StartAsync();
+        await rustFsContainer.StartAsync();
         await rabbitMqContainer.StartAsync();
 
         await EnsureRabbitTopology(rabbitMqContainer);
@@ -124,8 +128,8 @@ public class TestRuntime : IAsyncDisposable
         var jwtIssuer = wireMockContainer.GetPublicUrl().TrimEnd('/');
         JwtIssuer = jwtIssuer;
 
-        SubjectApi = ConfigureSubjectApi(postgresContainer, azuriteContainer);
-        SubjectWorker = ConfigureSubjectWorker(postgresContainer, azuriteContainer);
+        SubjectApi = ConfigureSubjectApi(postgresContainer, rustFsContainer);
+        SubjectWorker = ConfigureSubjectWorker(postgresContainer, rustFsContainer);
         SubjectConsumer = ConfigureSubjectConsumer(postgresContainer, rabbitMqContainer);
 
         SubjectWorker.CreateClient();
@@ -135,7 +139,7 @@ public class TestRuntime : IAsyncDisposable
         await wiremockAdmin.ConfigureOIDCWellKnown(jwtIssuer);
     }
 
-    private WebApplicationFactory<Api.Program> ConfigureSubjectApi(PostgreSqlContainer postgresContainer, AzuriteContainer azuriteContainer)
+    private WebApplicationFactory<Api.Program> ConfigureSubjectApi(PostgreSqlContainer postgresContainer, IContainer rustFsContainer)
     {
         return new WebApplicationFactory<Api.Program>()
             .WithWebHostBuilder(builder =>
@@ -158,9 +162,12 @@ public class TestRuntime : IAsyncDisposable
                         { "OpenIdConnect:Audience", TestConstants.Audience },
                         { "OpenIdConnect:Issuer", JwtIssuer },
 
-                        // Azure Blob Storage
-                        { "Storage:ConnectionString", azuriteContainer.GetConnectionString() },
-                        { "Storage:ContainerName", "uploads" },
+                        // S3 object storage (RustFS)
+                        { "Storage:Endpoint", $"http://{rustFsContainer.Hostname}:{rustFsContainer.GetMappedPublicPort(9000)}" },
+                        { "Storage:AccessKeyId", "admin" },
+                        { "Storage:SecretAccessKey", "secret" },
+                        { "Storage:Region", "us-east-1" },
+                        { "Storage:Bucket", "uploads" },
                     };
 
                     b.Add(config);
@@ -289,7 +296,7 @@ public class TestRuntime : IAsyncDisposable
         }
     }
 
-    private static WebApplicationFactory<Worker.Program> ConfigureSubjectWorker(PostgreSqlContainer postgresContainer, AzuriteContainer azuriteContainer)
+    private static WebApplicationFactory<Worker.Program> ConfigureSubjectWorker(PostgreSqlContainer postgresContainer, IContainer rustFsContainer)
     {
         return new WebApplicationFactory<Worker.Program>()
             .WithWebHostBuilder(builder =>
@@ -303,8 +310,11 @@ public class TestRuntime : IAsyncDisposable
                     config.InitialData = new Dictionary<string, string?>
                     {
                         { "ConnectionStrings:PostgresDb", postgresContainer.GetConnectionString() },
-                        { "Storage:ConnectionString", azuriteContainer.GetConnectionString() },
-                        { "Storage:ContainerName", "uploads" },
+                        { "Storage:Endpoint", $"http://{rustFsContainer.Hostname}:{rustFsContainer.GetMappedPublicPort(9000)}" },
+                        { "Storage:AccessKeyId", "admin" },
+                        { "Storage:SecretAccessKey", "secret" },
+                        { "Storage:Region", "us-east-1" },
+                        { "Storage:Bucket", "uploads" },
                     };
 
                     b.Add(config);
