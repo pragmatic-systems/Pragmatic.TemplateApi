@@ -3,29 +3,34 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using Azure.Storage.Blobs;
+using Amazon.S3;
+using Amazon.S3.Model;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Pragmatic.TemplateApi.Database;
 using Pragmatic.TemplateApi.Database.Model;
 
 namespace Pragmatic.TemplateApi.Instrumentation;
 
 /// <summary>
-/// Background job handler that downloads a CSV blob from Azure Blob Storage
+/// Background job handler that downloads a CSV object from S3-compatible storage
 /// and imports the rows as todo records into the database.
 /// </summary>
 public class CsvImportJobHandler
 {
-    private readonly BlobContainerClient _blobContainerClient;
+    private readonly AmazonS3Client _s3;
+    private readonly StorageOptions _storage;
     private readonly ApplicationDbContext _dbContext;
     private readonly ILogger<CsvImportJobHandler> _logger;
 
     public CsvImportJobHandler(
-        BlobContainerClient blobContainerClient,
+        AmazonS3Client s3,
+        IOptions<StorageOptions> storage,
         ApplicationDbContext dbContext,
         ILogger<CsvImportJobHandler> logger)
     {
-        _blobContainerClient = blobContainerClient;
+        _s3 = s3;
+        _storage = storage.Value;
         _dbContext = dbContext;
         _logger = logger;
     }
@@ -34,10 +39,13 @@ public class CsvImportJobHandler
     {
         _logger.LogInformation("Starting CSV import for blob: {BlobName}", blobName);
 
-        var blobClient = _blobContainerClient.GetBlobClient(blobName);
-        var downloadResult = await blobClient.DownloadAsync();
+        var getObject = await _s3.GetObjectAsync(new GetObjectRequest
+        {
+            BucketName = _storage.Bucket,
+            Key = blobName,
+        });
 
-        using var stream = downloadResult.Value.Content;
+        using var stream = getObject.ResponseStream;
         using var reader = new StreamReader(stream);
 
         var lines = new List<string>();
@@ -102,8 +110,12 @@ public class CsvImportJobHandler
                 blobName);
         }
 
-        // Clean up: delete the blob after successful import
-        await blobClient.DeleteIfExistsAsync();
+        // Clean up: delete the object after successful import (S3 DeleteObject is idempotent)
+        await _s3.DeleteObjectAsync(new DeleteObjectRequest
+        {
+            BucketName = _storage.Bucket,
+            Key = blobName,
+        });
         _logger.LogInformation("Deleted blob after import: {BlobName}", blobName);
     }
 }

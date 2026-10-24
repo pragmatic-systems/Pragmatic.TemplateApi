@@ -21,7 +21,7 @@ public sealed class TodoMessageConsumer : BackgroundService
     private readonly ILogger<TodoMessageConsumer> _logger;
     private readonly IServiceScopeFactory _scopeFactory;
     private IConnection? _connection;
-    private IModel? _channel;
+    private IChannel? _channel;
 
     public TodoMessageConsumer(
         IOptions<RabbitOptions> options,
@@ -42,18 +42,17 @@ public sealed class TodoMessageConsumer : BackgroundService
         {
             Uri = new Uri(connectionString),
             AutomaticRecoveryEnabled = true,
-            TopologyRecoveryEnabled = true,
-            DispatchConsumersAsync = true
+            TopologyRecoveryEnabled = true
         };
 
-        _connection = factory.CreateConnection();
-        _channel = _connection.CreateModel();
+        _connection = await factory.CreateConnectionAsync(cancellationToken: stoppingToken);
+        _channel = await _connection.CreateChannelAsync(cancellationToken: stoppingToken);
 
-        _channel.BasicQos(prefetchSize: 0, prefetchCount: (ushort)_options.PrefetchCount, global: false);
+        await _channel.BasicQosAsync(prefetchSize: 0, prefetchCount: (ushort)_options.PrefetchCount, global: false, cancellationToken: stoppingToken);
 
         var consumer = new AsyncEventingBasicConsumer(_channel);
-        consumer.Received += OnMessageReceived;
-        _channel.BasicConsume(queue: _options.QueueName, autoAck: false, consumer: consumer);
+        consumer.ReceivedAsync += OnMessageReceived;
+        await _channel.BasicConsumeAsync(queue: _options.QueueName, autoAck: false, consumer: consumer, cancellationToken: stoppingToken);
 
         _logger.LogInformation(
             "Started consuming from queue '{Queue}' (prefetch: {PrefetchCount})",
@@ -72,6 +71,7 @@ public sealed class TodoMessageConsumer : BackgroundService
 
     private async Task OnMessageReceived(object sender, BasicDeliverEventArgs eventArgs)
     {
+        var cancellationToken = eventArgs.CancellationToken;
         var body = Encoding.UTF8.GetString(eventArgs.Body.ToArray());
         var message = TryParseMessage(body);
 
@@ -91,13 +91,21 @@ public sealed class TodoMessageConsumer : BackgroundService
                 throw new FormatException("Message body is not a valid TodoMessage object.");
             }
 
-            await ProcessMessageAsync(message, eventArgs.Redelivered);
-            _channel!.BasicAck(deliveryTag: eventArgs.DeliveryTag, multiple: false);
+            await ProcessMessageAsync(message, eventArgs.Redelivered, cancellationToken);
+            await _channel!.BasicAckAsync(deliveryTag: eventArgs.DeliveryTag, multiple: false, cancellationToken: cancellationToken);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to process message (deliveryTag: {DeliveryTag}), nacking without requeue", eventArgs.DeliveryTag);
-            _channel!.BasicNack(deliveryTag: eventArgs.DeliveryTag, multiple: false, requeue: false);
+
+            try
+            {
+                await _channel!.BasicNackAsync(deliveryTag: eventArgs.DeliveryTag, multiple: false, requeue: false, cancellationToken: CancellationToken.None);
+            }
+            catch (Exception nackEx)
+            {
+                _logger.LogError(nackEx, "Failed to nack message (deliveryTag: {DeliveryTag}); it may be redelivered and reprocessed", eventArgs.DeliveryTag);
+            }
         }
     }
 
@@ -113,14 +121,14 @@ public sealed class TodoMessageConsumer : BackgroundService
         }
     }
 
-    private async Task ProcessMessageAsync(InsertTodo message, bool redelivered)
+    private async Task ProcessMessageAsync(InsertTodo message, bool redelivered, CancellationToken cancellationToken)
     {
         using var scope = _scopeFactory.CreateScope();
 
         // Queue messages don't get the API's model binding validation, so validate explicitly.
         // A failure here throws and the message is dead-lettered instead of inserted.
         var validator = scope.ServiceProvider.GetRequiredService<IValidator<InsertTodo>>();
-        var validation = await validator.ValidateAsync(message);
+        var validation = await validator.ValidateAsync(message, cancellationToken);
         if (!validation.IsValid)
         {
             throw new ValidationException(validation.Errors);
@@ -128,7 +136,7 @@ public sealed class TodoMessageConsumer : BackgroundService
 
         _logger.LogDebug("Processed message with {Title} / {Description})", message.Title, message.Description);
         var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
-        await mediator.Send(message, CancellationToken.None);
+        await mediator.Send(message, cancellationToken);
     }
 
     private static string Truncate(string? value)
@@ -137,18 +145,18 @@ public sealed class TodoMessageConsumer : BackgroundService
         return value.Length <= MaxLoggedTextLength ? value : value[..MaxLoggedTextLength] + "…";
     }
 
-    public override Task StopAsync(CancellationToken cancellationToken)
+    public override async Task StopAsync(CancellationToken cancellationToken)
     {
         if (_channel is not null)
         {
-            _channel.Close();
+            await _channel.CloseAsync(cancellationToken);
         }
 
         if (_connection is not null)
         {
             try
             {
-                _connection.Close();
+                await _connection.CloseAsync(cancellationToken);
             }
             catch (Exception)
             {
@@ -156,6 +164,6 @@ public sealed class TodoMessageConsumer : BackgroundService
             }
         }
 
-        return base.StopAsync(cancellationToken);
+        await base.StopAsync(cancellationToken);
     }
 }

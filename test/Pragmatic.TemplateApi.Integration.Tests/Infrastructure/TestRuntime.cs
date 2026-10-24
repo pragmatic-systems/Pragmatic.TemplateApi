@@ -1,6 +1,7 @@
 ﻿using System.Text;
 using System.Text.Json;
-using Azure.Storage.Blobs;
+using DotNet.Testcontainers.Builders;
+using DotNet.Testcontainers.Containers;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -11,7 +12,6 @@ using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Pragmatic.TemplateApi.Core.Handlers;
 using Pragmatic.TemplateApi.Integration.Tests.Infrastructure.Auth;
 using RabbitMQ.Client;
-using Testcontainers.Azurite;
 using Testcontainers.PostgreSql;
 using Testcontainers.RabbitMq;
 using WireMock.Net.Testcontainers;
@@ -24,7 +24,7 @@ public class TestRuntime : IAsyncDisposable
 
     public PostgreSqlContainer? PostgresContainer { get; private set; }
 
-    public AzuriteContainer? AzuriteContainer { get; private set; }
+    public IContainer? RustFsContainer { get; private set; }
 
     public RabbitMqContainer? RabbitMqContainer { get; private set; }
 
@@ -45,6 +45,14 @@ public class TestRuntime : IAsyncDisposable
         => SubjectApi ?? throw new InvalidOperationException(
             "TestRuntime has not been initialized. Call InitializeAsync() before using the subject API.");
 
+    public WebApplicationFactory<Consumer.Program> GetSubjectConsumer()
+        => SubjectConsumer ?? throw new InvalidOperationException(
+            "TestRuntime has not been initialized. Call InitializeAsync() before using the subject consumer.");
+
+    public WebApplicationFactory<Worker.Program> GetSubjectWorker()
+        => SubjectWorker ?? throw new InvalidOperationException(
+            "TestRuntime has not been initialized. Call InitializeAsync() before using the subject worker.");
+
     public string GetJwtIssuer()
         => JwtIssuer ?? throw new InvalidOperationException(
             "TestRuntime has not been initialized. Call InitializeAsync() before getting JwtIssuer.");
@@ -61,8 +69,8 @@ public class TestRuntime : IAsyncDisposable
         if (PostgresContainer != null)
             await PostgresContainer.DisposeAsync();
 
-        if (AzuriteContainer != null)
-            await AzuriteContainer.DisposeAsync();
+        if (RustFsContainer != null)
+            await RustFsContainer.DisposeAsync();
 
         if (RabbitMqContainer != null)
             await RabbitMqContainer.DisposeAsync();
@@ -94,11 +102,17 @@ public class TestRuntime : IAsyncDisposable
             .Build();
         WireMockContainer = wireMockContainer;
 
-        // Configure Azurite (Blob)
-        var azuriteContainer = new AzuriteBuilder("mcr.microsoft.com/azure-storage/azurite:3.37.0")
+        // Configure RustFS (S3 object store; S3 API on port 9000).
+        // The image pre-creates /data (owned by its UID 10001 user) and defaults to it as the sole volume.
+        const string rustFsImage = "rustfs/rustfs:1.0.3";
+        var rustFsContainer = new ContainerBuilder(rustFsImage)
+            .WithPortBinding(9000, true)
+            .WithEnvironment("RUSTFS_ACCESS_KEY", "admin")
+            .WithEnvironment("RUSTFS_SECRET_KEY", "secret")
+            .WithWaitStrategy(Wait.ForUnixContainer().UntilInternalTcpPortIsAvailable(9000))
             .WithAutoRemove(true)
             .Build();
-        AzuriteContainer = azuriteContainer;
+        RustFsContainer = rustFsContainer;
 
         // Configure RabbitMQ
         var rabbitMqContainer = new RabbitMqBuilder("rabbitmq:4.1-management")
@@ -110,10 +124,10 @@ public class TestRuntime : IAsyncDisposable
 
         await postgresContainer.StartAsync();
         await wireMockContainer.StartAsync();
-        await azuriteContainer.StartAsync();
+        await rustFsContainer.StartAsync();
         await rabbitMqContainer.StartAsync();
 
-        EnsureRabbitTopology(rabbitMqContainer);
+        await EnsureRabbitTopology(rabbitMqContainer);
 
         // Create SSL Certificate
         SigningCertificate = PemCertificate.Create();
@@ -122,8 +136,8 @@ public class TestRuntime : IAsyncDisposable
         var jwtIssuer = wireMockContainer.GetPublicUrl().TrimEnd('/');
         JwtIssuer = jwtIssuer;
 
-        SubjectApi = ConfigureSubjectApi(postgresContainer, azuriteContainer);
-        SubjectWorker = ConfigureSubjectWorker(postgresContainer, azuriteContainer);
+        SubjectApi = ConfigureSubjectApi(postgresContainer, rustFsContainer);
+        SubjectWorker = ConfigureSubjectWorker(postgresContainer, rustFsContainer);
         SubjectConsumer = ConfigureSubjectConsumer(postgresContainer, rabbitMqContainer);
 
         SubjectWorker.CreateClient();
@@ -133,7 +147,7 @@ public class TestRuntime : IAsyncDisposable
         await wiremockAdmin.ConfigureOIDCWellKnown(jwtIssuer);
     }
 
-    private WebApplicationFactory<Api.Program> ConfigureSubjectApi(PostgreSqlContainer postgresContainer, AzuriteContainer azuriteContainer)
+    private WebApplicationFactory<Api.Program> ConfigureSubjectApi(PostgreSqlContainer postgresContainer, IContainer rustFsContainer)
     {
         return new WebApplicationFactory<Api.Program>()
             .WithWebHostBuilder(builder =>
@@ -156,9 +170,12 @@ public class TestRuntime : IAsyncDisposable
                         { "OpenIdConnect:Audience", TestConstants.Audience },
                         { "OpenIdConnect:Issuer", JwtIssuer },
 
-                        // Azure Blob Storage
-                        { "Storage:ConnectionString", azuriteContainer.GetConnectionString() },
-                        { "Storage:ContainerName", "uploads" },
+                        // S3 object storage (RustFS)
+                        { "Storage:Endpoint", $"http://{rustFsContainer.Hostname}:{rustFsContainer.GetMappedPublicPort(9000)}" },
+                        { "Storage:AccessKeyId", "admin" },
+                        { "Storage:SecretAccessKey", "secret" },
+                        { "Storage:Region", "us-east-1" },
+                        { "Storage:Bucket", "uploads" },
                     };
 
                     b.Add(config);
@@ -188,14 +205,14 @@ public class TestRuntime : IAsyncDisposable
     /// <summary>
     /// Declares the topology the Consumer expects, mirroring the local RabbitMQ definitions.
     /// </summary>
-    private static void EnsureRabbitTopology(RabbitMqContainer rabbitMqContainer)
+    private static async Task EnsureRabbitTopology(RabbitMqContainer rabbitMqContainer)
     {
         var factory = new ConnectionFactory { Uri = new Uri(rabbitMqContainer.GetConnectionString()) };
-        using var connection = factory.CreateConnection();
-        using var channel = connection.CreateModel();
+        await using var connection = await factory.CreateConnectionAsync();
+        await using var channel = await connection.CreateChannelAsync();
 
         // Single source of truth for the topology, so the test broker can't drift from the app.
-        Consumer.RabbitTopology.EnsureTopology(channel, new Consumer.RabbitOptions());
+        await Consumer.RabbitTopology.EnsureTopologyAsync(channel, new Consumer.RabbitOptions());
     }
 
     // Mirrors the Consumer's RabbitOptions defaults, which are the single source of truth for the topology names.
@@ -203,35 +220,34 @@ public class TestRuntime : IAsyncDisposable
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
-    private (IConnection Connection, IModel Channel) CreateRabbitChannel()
+    private async Task<(IConnection Connection, IChannel Channel)> CreateRabbitChannel()
     {
         var rabbitMqContainer = RabbitMqContainer
             ?? throw new InvalidOperationException(
                 "TestRuntime has not been initialized. Call InitializeAsync() before using RabbitMQ.");
 
         var factory = new ConnectionFactory { Uri = new Uri(rabbitMqContainer.GetConnectionString()) };
-        var connection = factory.CreateConnection();
-        return (connection, connection.CreateModel());
+        var connection = await factory.CreateConnectionAsync();
+        return (connection, await connection.CreateChannelAsync());
     }
 
-    private static void PublishMessage(IModel channel, string exchange, string routingKey, InsertTodo message)
-        => channel.BasicPublish(
+    private static ValueTask PublishMessage(IChannel channel, string exchange, string routingKey, InsertTodo message)
+        => channel.BasicPublishAsync(
             exchange: exchange,
             routingKey: routingKey,
-            basicProperties: null,
             body: Encoding.UTF8.GetBytes(JsonSerializer.Serialize(message, JsonOptions)));
 
     /// <summary>
     /// Publishes an <see cref="InsertTodo"/> message to the <c>todo-message</c> queue,
     /// acting as an external producer so the Consumer can pick it up and insert it.
     /// </summary>
-    public void PublishTodoItemToQueue(string title, string description, DateTime dueDate)
+    public async Task PublishTodoItemToQueue(string title, string description, DateTime dueDate)
     {
-        var (connection, channel) = CreateRabbitChannel();
-        using (connection)
-        using (channel)
+        var (connection, channel) = await CreateRabbitChannel();
+        await using (connection)
+        await using (channel)
         {
-            PublishMessage(channel, RabbitOptionsDefaults.ExchangeName, RabbitOptionsDefaults.QueueName, new InsertTodo(title, description, dueDate));
+            await PublishMessage(channel, RabbitOptionsDefaults.ExchangeName, RabbitOptionsDefaults.QueueName, new InsertTodo(title, description, dueDate));
         }
     }
 
@@ -239,23 +255,13 @@ public class TestRuntime : IAsyncDisposable
     /// Publishes a message with a null title, which the Consumer's validation rejects,
     /// so it deterministically fails and is dead lettered.
     /// </summary>
-    public void PublishPoisonTodoItemToQueue(string description, DateTime dueDate)
+    public async Task PublishPoisonTodoItemToQueue(string description, DateTime dueDate)
     {
-        var (connection, channel) = CreateRabbitChannel();
-        using (connection)
-        using (channel)
+        var (connection, channel) = await CreateRabbitChannel();
+        await using (connection)
+        await using (channel)
         {
-            PublishMessage(channel, RabbitOptionsDefaults.ExchangeName, RabbitOptionsDefaults.QueueName, new InsertTodo(null, description, dueDate));
-        }
-    }
-
-    public int GetDeadLetterMessageCount()
-    {
-        var (connection, channel) = CreateRabbitChannel();
-        using (connection)
-        using (channel)
-        {
-            return (int)channel.QueueDeclarePassive(queue: RabbitOptionsDefaults.DeadLetterQueueName).MessageCount;
+            await PublishMessage(channel, RabbitOptionsDefaults.ExchangeName, RabbitOptionsDefaults.QueueName, new InsertTodo(null, description, dueDate));
         }
     }
 
@@ -265,13 +271,13 @@ public class TestRuntime : IAsyncDisposable
     /// <summary>
     /// Drains the dead letter queue, adds to the memory buffer and returns a snapshot of its contents.
     /// </summary>
-    public IEnumerable<string> FetchDeadLetterQueue()
+    public async Task<IEnumerable<string>> FetchDeadLetterQueue()
     {
-        var (connection, channel) = CreateRabbitChannel();
-        using (connection)
-        using (channel)
+        var (connection, channel) = await CreateRabbitChannel();
+        await using (connection)
+        await using (channel)
         {
-            while (channel.BasicGet(queue: RabbitOptionsDefaults.DeadLetterQueueName, autoAck: true) is { } result)
+            while (await channel.BasicGetAsync(queue: RabbitOptionsDefaults.DeadLetterQueueName, autoAck: true) is { } result)
             {
                 var payload = Encoding.UTF8.GetString(result.Body.ToArray());
                 lock (_deadLetterLock)
@@ -298,7 +304,7 @@ public class TestRuntime : IAsyncDisposable
         }
     }
 
-    private static WebApplicationFactory<Worker.Program> ConfigureSubjectWorker(PostgreSqlContainer postgresContainer, AzuriteContainer azuriteContainer)
+    private WebApplicationFactory<Worker.Program> ConfigureSubjectWorker(PostgreSqlContainer postgresContainer, IContainer rustFsContainer)
     {
         return new WebApplicationFactory<Worker.Program>()
             .WithWebHostBuilder(builder =>
@@ -312,8 +318,11 @@ public class TestRuntime : IAsyncDisposable
                     config.InitialData = new Dictionary<string, string?>
                     {
                         { "ConnectionStrings:PostgresDb", postgresContainer.GetConnectionString() },
-                        { "Storage:ConnectionString", azuriteContainer.GetConnectionString() },
-                        { "Storage:ContainerName", "uploads" },
+                        { "Storage:Endpoint", $"http://{rustFsContainer.Hostname}:{rustFsContainer.GetMappedPublicPort(9000)}" },
+                        { "Storage:AccessKeyId", "admin" },
+                        { "Storage:SecretAccessKey", "secret" },
+                        { "Storage:Region", "us-east-1" },
+                        { "Storage:Bucket", "uploads" },
                     };
 
                     b.Add(config);
@@ -342,9 +351,6 @@ public class TestRuntime : IAsyncDisposable
                         { "ConnectionStrings:PostgresDb", postgresContainer.GetConnectionString() },
                         { "RabbitMQ:ConnectionString", rabbitMqContainer.GetConnectionString() },
                         { "RabbitMQ:QueueName", "todo-message" },
-
-                        // Tests invoke the re-drive explicitly via DlqReDriveService, so the scheduled loop must stay off.
-                        { "RabbitMQ:ReDriveEnabled", "false" },
                     };
 
                     b.Add(config);

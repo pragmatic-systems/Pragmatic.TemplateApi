@@ -2,7 +2,6 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.OpenApi.Models;
 using Pragmatic.TemplateApi.Api.Auth;
 using Pragmatic.TemplateApi.Instrumentation;
 using Prometheus;
@@ -26,14 +25,15 @@ public class Program
             builder.Services.WithIngressConfig();
             builder.Services.WithSerilog(builder.Configuration, "Pragmatic.TemplateApi API");
             builder.Services.WithPostgres(builder.Configuration);
-            builder.Services.WithAzureBlobStorage(builder.Configuration);
+            builder.Services.WithS3Storage(builder.Configuration);
             builder.Services.WithValidators();
             builder.Services.WithMediatr();
             builder.Services.WithOpenIdConnect(builder.Configuration);
             builder.Services.WithAuthorizationPolicy();
             builder.Services.WithHangfire(builder.Configuration);
             builder.Services.AddControllers();
-            builder.Services.AddAppHealthChecks(builder.Configuration);
+            builder.Services.AddPostgresHealthChecks(builder.Configuration);
+            builder.Services.AddOIDCHealthChecks(builder.Configuration);
 
             var app = builder.Build();
 

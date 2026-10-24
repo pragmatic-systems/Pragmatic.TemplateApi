@@ -116,9 +116,9 @@ public sealed class TodoApiFeatureStepDefinitions
     }
 
     [When("We publish a todo item to the queue")]
-    public void WePublishATodoItemToTheQueue()
+    public async Task WePublishATodoItemToTheQueue()
     {
-        _testContext.PublishTodoItemToQueue();
+        await _testContext.PublishTodoItemToQueue();
     }
 
     [When("We wait for the queue consumer to insert the item")]

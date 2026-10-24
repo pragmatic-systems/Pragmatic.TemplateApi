@@ -17,10 +17,10 @@ public class Program
 
             builder.Services.WithSerilog(builder.Configuration, "Pragmatic.TemplateApi Worker");
             builder.Services.WithPostgres(builder.Configuration);
-            builder.Services.WithAzureBlobStorage(builder.Configuration);
+            builder.Services.WithS3Storage(builder.Configuration);
             builder.Services.WithHangfire(builder.Configuration);
             builder.Services.WithHangfireServer(builder.Configuration);
-            builder.Services.AddAppHealthChecks(builder.Configuration);
+            builder.Services.AddPostgresHealthChecks(builder.Configuration);
 
             var app = builder.Build();
 

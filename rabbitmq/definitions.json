@@ -56,17 +56,15 @@
     {
       "vhost": "/",
       "source": "todo-message",
-      "vkind": "exchange",
       "destination": "todo-message",
-      "dkind": "queue",
+      "destination_type": "queue",
       "routing_key": "todo-message"
     },
     {
       "vhost": "/",
       "source": "todo-message-dlx",
-      "vkind": "exchange",
       "destination": "todo-message-dl",
-      "dkind": "queue",
+      "destination_type": "queue",
       "routing_key": "todo-message-dl"
     }
   ]

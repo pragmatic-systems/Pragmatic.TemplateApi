@@ -36,6 +36,7 @@ jobs:
         uses: cake-build/cake-action@763b621ef69b317c1d6bde43a65f189c936b503b
         with:
           script-path: build.cake
+          cake-version: 6.2.0
           target: FullPackAndPush
           NugetSource: ${{ vars.PRIVATE_NUGET_SOURCE }}
           NugetApiKey: ${{ secrets.GITHUB_TOKEN }}

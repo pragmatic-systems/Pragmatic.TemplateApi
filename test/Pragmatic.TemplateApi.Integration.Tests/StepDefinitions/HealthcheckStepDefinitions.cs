@@ -31,4 +31,16 @@ public sealed class HealthcheckStepDefinitions
     {
         await _testContext.GetAsync("_system/metrics");
     }
+
+    [When("We call the consumer healthcheck endpoint")]
+    public async Task WeCallTheConsumerHealthcheckEndpoint()
+    {
+        await _testContext.GetConsumerAsync("_system/health");
+    }
+
+    [When("We call the worker healthcheck endpoint")]
+    public async Task WeCallTheWorkerHealthcheckEndpoint()
+    {
+        await _testContext.GetWorkerAsync("_system/health");
+    }
 }

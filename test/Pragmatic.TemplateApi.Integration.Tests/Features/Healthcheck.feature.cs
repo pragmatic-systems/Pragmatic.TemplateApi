@@ -105,7 +105,7 @@ namespace Pragmatic.TemplateApi.Integration.Tests.Features
         
         private static global::Reqnroll.Formatters.RuntimeSupport.FeatureLevelCucumberMessages InitializeCucumberMessages()
         {
-            return new global::Reqnroll.Formatters.RuntimeSupport.FeatureLevelCucumberMessages("Features/Healthcheck.feature.ndjson", 5);
+            return new global::Reqnroll.Formatters.RuntimeSupport.FeatureLevelCucumberMessages("Features/Healthcheck.feature.ndjson", 7);
         }
         
         async System.Threading.Tasks.ValueTask Xunit.IAsyncLifetime.InitializeAsync()
@@ -224,6 +224,76 @@ this.ScenarioInitialize(scenarioInfo, ruleInfo);
  await testRunner.WhenAsync("We call the metrics endpoint", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
 #line hidden
 #line 14
+ await testRunner.ThenAsync("The response should be 200 OK", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
+#line hidden
+            }
+            await this.ScenarioCleanupAsync();
+        }
+        
+        [global::Xunit.FactAttribute(DisplayName="Consumer healthcheck")]
+        [global::Xunit.TraitAttribute("FeatureTitle", "Healthchecks")]
+        [global::Xunit.TraitAttribute("Description", "Consumer healthcheck")]
+        [global::Xunit.TraitAttribute("Category", "healthcheck")]
+        [global::Xunit.TraitAttribute("Category", "consumer")]
+        public async global::System.Threading.Tasks.Task ConsumerHealthcheck()
+        {
+            string[] tagsOfScenario = new string[] {
+                    "healthcheck",
+                    "consumer"};
+            global::System.Collections.Specialized.OrderedDictionary argumentsOfScenario = new global::System.Collections.Specialized.OrderedDictionary();
+            string pickleIndex = "3";
+            global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("Consumer healthcheck", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
+            string[] tagsOfRule = ((string[])(null));
+            global::Reqnroll.RuleInfo ruleInfo = null;
+#line 17
+this.ScenarioInitialize(scenarioInfo, ruleInfo);
+#line hidden
+            if ((global::Reqnroll.TagHelper.ContainsIgnoreTag(scenarioInfo.CombinedTags) || global::Reqnroll.TagHelper.ContainsIgnoreTag(featureTags)))
+            {
+                await testRunner.SkipScenarioAsync();
+            }
+            else
+            {
+                await this.ScenarioStartAsync();
+#line 18
+ await testRunner.WhenAsync("We call the consumer healthcheck endpoint", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
+#line hidden
+#line 19
+ await testRunner.ThenAsync("The response should be 200 OK", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
+#line hidden
+            }
+            await this.ScenarioCleanupAsync();
+        }
+        
+        [global::Xunit.FactAttribute(DisplayName="Worker healthcheck")]
+        [global::Xunit.TraitAttribute("FeatureTitle", "Healthchecks")]
+        [global::Xunit.TraitAttribute("Description", "Worker healthcheck")]
+        [global::Xunit.TraitAttribute("Category", "healthcheck")]
+        [global::Xunit.TraitAttribute("Category", "worker")]
+        public async global::System.Threading.Tasks.Task WorkerHealthcheck()
+        {
+            string[] tagsOfScenario = new string[] {
+                    "healthcheck",
+                    "worker"};
+            global::System.Collections.Specialized.OrderedDictionary argumentsOfScenario = new global::System.Collections.Specialized.OrderedDictionary();
+            string pickleIndex = "4";
+            global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("Worker healthcheck", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
+            string[] tagsOfRule = ((string[])(null));
+            global::Reqnroll.RuleInfo ruleInfo = null;
+#line 22
+this.ScenarioInitialize(scenarioInfo, ruleInfo);
+#line hidden
+            if ((global::Reqnroll.TagHelper.ContainsIgnoreTag(scenarioInfo.CombinedTags) || global::Reqnroll.TagHelper.ContainsIgnoreTag(featureTags)))
+            {
+                await testRunner.SkipScenarioAsync();
+            }
+            else
+            {
+                await this.ScenarioStartAsync();
+#line 23
+ await testRunner.WhenAsync("We call the worker healthcheck endpoint", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
+#line hidden
+#line 24
  await testRunner.ThenAsync("The response should be 200 OK", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
 #line hidden
             }

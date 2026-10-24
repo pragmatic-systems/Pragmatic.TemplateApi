@@ -1,4 +1,5 @@
-﻿using Azure.Storage.Blobs;
+﻿using Amazon.Runtime;
+using Amazon.S3;
 using FluentValidation;
 using Hangfire;
 using Hangfire.PostgreSql;
@@ -9,6 +10,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Pragmatic.CQRS;
 using Pragmatic.TemplateApi.Core.Handlers;
 using Pragmatic.TemplateApi.Core.Validators;
@@ -104,27 +106,31 @@ public static class ConfigurationExtensions
 
     public static IServiceCollection WithHangfire(this IServiceCollection services, IConfiguration configuration)
     {
-        // NOTE: There is no lazy load here for PostgreSQL - if the DB does not exist at this point it will fall over.
         services.AddHangfire(hfConfig =>
         {
             var connection = configuration.GetConnectionString("PostgresDb");
-
             ArgumentException.ThrowIfNullOrEmpty(connection);
 
-            Migrator.EnsureDb(connection);
-
-            hfConfig
-                .UsePostgreSqlStorage(connection);
+            hfConfig.UsePostgreSqlStorage(bootstrapper =>
+                bootstrapper.UseNpgsqlConnection(connection));
         });
 
         return services;
     }
 
-    public static IServiceCollection AddAppHealthChecks(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddPostgresHealthChecks(this IServiceCollection services, IConfiguration configuration)
     {
         services
             .AddHealthChecks()
-            .AddNpgSql(s => configuration.GetConnectionString("PostgresDb") ?? throw new ArgumentException("ConnectionString for PostgresDb not found"), name: "Database Provider")
+            .AddNpgSql(s => configuration.GetConnectionString("PostgresDb") ?? throw new ArgumentException("ConnectionString for PostgresDb not found"), name: "Database Provider");
+
+        return services;
+    }
+
+    public static IServiceCollection AddOIDCHealthChecks(this IServiceCollection services, IConfiguration configuration)
+    {
+        services
+            .AddHealthChecks()
             .AddUrlGroup(
                 s =>
                 {
@@ -139,19 +145,34 @@ public static class ConfigurationExtensions
         return services;
     }
 
-    public static IServiceCollection WithAzureBlobStorage(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection WithS3Storage(this IServiceCollection services, IConfiguration configuration)
     {
-        services.AddSingleton(provider =>
-            new BlobServiceClient(configuration.GetSection("Storage:ConnectionString").Value));
+        services.Configure<StorageOptions>(configuration.GetSection(StorageOptions.SectionName));
+
+        services.AddOptions<StorageOptions>()
+            .Validate(options =>
+                !string.IsNullOrWhiteSpace(options.Endpoint) &&
+                !string.IsNullOrWhiteSpace(options.AccessKeyId) &&
+                !string.IsNullOrWhiteSpace(options.SecretAccessKey) &&
+                !string.IsNullOrWhiteSpace(options.Region),
+                "Storage requires Endpoint, AccessKeyId, SecretAccessKey, and Region to be configured.")
+            .ValidateOnStart();
 
         services.AddSingleton(provider =>
         {
-            var client = provider.GetRequiredService<BlobServiceClient>();
-            var containerName = configuration.GetSection("Storage:ContainerName").Value ?? "uploads";
-            return client.GetBlobContainerClient(containerName);
+            var options = provider.GetRequiredService<IOptions<StorageOptions>>().Value;
+
+            var config = new AmazonS3Config
+            {
+                ServiceURL = options.Endpoint,
+                AuthenticationRegion = options.Region,
+                ForcePathStyle = true,
+            };
+
+            return new AmazonS3Client(new BasicAWSCredentials(options.AccessKeyId, options.SecretAccessKey), config);
         });
 
-        services.AddHostedService<BlobContainerInitService>();
+        services.AddHostedService<BucketInitService>();
 
         return services;
     }
