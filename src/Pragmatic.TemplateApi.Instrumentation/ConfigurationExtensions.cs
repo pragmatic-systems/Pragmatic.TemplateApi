@@ -109,6 +109,7 @@ public static class ConfigurationExtensions
         services.AddHangfire(hfConfig =>
         {
             var connection = configuration.GetConnectionString("PostgresDb");
+            ArgumentException.ThrowIfNullOrEmpty(connection);
 
             hfConfig.UsePostgreSqlStorage(bootstrapper =>
                 bootstrapper.UseNpgsqlConnection(connection));

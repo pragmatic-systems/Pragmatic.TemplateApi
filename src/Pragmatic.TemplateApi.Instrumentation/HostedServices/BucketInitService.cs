@@ -17,6 +17,7 @@ public class BucketInitService : IHostedService
         _options = options.Value;
     }
 
+    // NOTE: This implementation is temporary - moving provisioning to infra.
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         try
