@@ -17,6 +17,7 @@ public class Program
 
             builder.Services.WithSerilog(builder.Configuration, "Pragmatic.TemplateApi Consumer");
             builder.Services.WithPostgres(builder.Configuration);
+            builder.Services.AddPostgresHealthChecks(builder.Configuration);
             builder.Services.AddRabbitConsumer(builder.Configuration);
             builder.Services.WithValidators();
             builder.Services.WithMediatr();

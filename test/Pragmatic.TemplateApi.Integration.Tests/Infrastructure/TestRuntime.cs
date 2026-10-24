@@ -318,7 +318,6 @@ public class TestRuntime : IAsyncDisposable
                     config.InitialData = new Dictionary<string, string?>
                     {
                         { "ConnectionStrings:PostgresDb", postgresContainer.GetConnectionString() },
-                        { "OpenIdConnect:Issuer", JwtIssuer },
                         { "Storage:Endpoint", $"http://{rustFsContainer.Hostname}:{rustFsContainer.GetMappedPublicPort(9000)}" },
                         { "Storage:AccessKeyId", "admin" },
                         { "Storage:SecretAccessKey", "secret" },

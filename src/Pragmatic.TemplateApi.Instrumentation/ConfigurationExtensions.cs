@@ -118,11 +118,19 @@ public static class ConfigurationExtensions
         return services;
     }
 
-    public static IServiceCollection AddAppHealthChecks(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddPostgresHealthChecks(this IServiceCollection services, IConfiguration configuration)
     {
         services
             .AddHealthChecks()
-            .AddNpgSql(s => configuration.GetConnectionString("PostgresDb") ?? throw new ArgumentException("ConnectionString for PostgresDb not found"), name: "Database Provider")
+            .AddNpgSql(s => configuration.GetConnectionString("PostgresDb") ?? throw new ArgumentException("ConnectionString for PostgresDb not found"), name: "Database Provider");
+
+        return services;
+    }
+
+    public static IServiceCollection AddOIDCHealthChecks(this IServiceCollection services, IConfiguration configuration)
+    {
+        services
+            .AddHealthChecks()
             .AddUrlGroup(
                 s =>
                 {

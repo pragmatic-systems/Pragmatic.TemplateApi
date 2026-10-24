@@ -32,7 +32,8 @@ public class Program
             builder.Services.WithAuthorizationPolicy();
             builder.Services.WithHangfire(builder.Configuration);
             builder.Services.AddControllers();
-            builder.Services.AddAppHealthChecks(builder.Configuration);
+            builder.Services.AddPostgresHealthChecks(builder.Configuration);
+            builder.Services.AddOIDCHealthChecks(builder.Configuration);
 
             var app = builder.Build();
 

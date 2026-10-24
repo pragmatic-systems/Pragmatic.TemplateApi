@@ -20,7 +20,7 @@ public class Program
             builder.Services.WithS3Storage(builder.Configuration);
             builder.Services.WithHangfire(builder.Configuration);
             builder.Services.WithHangfireServer(builder.Configuration);
-            builder.Services.AddAppHealthChecks(builder.Configuration);
+            builder.Services.AddPostgresHealthChecks(builder.Configuration);
 
             var app = builder.Build();
 
