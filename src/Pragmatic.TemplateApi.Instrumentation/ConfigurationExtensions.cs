@@ -149,11 +149,18 @@ public static class ConfigurationExtensions
     {
         services.Configure<StorageOptions>(configuration.GetSection(StorageOptions.SectionName));
 
+        services.AddOptions<StorageOptions>()
+            .Validate(options =>
+                !string.IsNullOrWhiteSpace(options.Endpoint) &&
+                !string.IsNullOrWhiteSpace(options.AccessKeyId) &&
+                !string.IsNullOrWhiteSpace(options.SecretAccessKey) &&
+                !string.IsNullOrWhiteSpace(options.Region),
+                "Storage requires Endpoint, AccessKeyId, SecretAccessKey, and Region to be configured.")
+            .ValidateOnStart();
+
         services.AddSingleton(provider =>
         {
             var options = provider.GetRequiredService<IOptions<StorageOptions>>().Value;
-
-            ArgumentException.ThrowIfNullOrEmpty(options.Endpoint);
 
             var config = new AmazonS3Config
             {
