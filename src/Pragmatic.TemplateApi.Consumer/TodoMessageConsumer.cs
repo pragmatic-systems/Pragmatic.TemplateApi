@@ -97,7 +97,15 @@ public sealed class TodoMessageConsumer : BackgroundService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to process message (deliveryTag: {DeliveryTag}), nacking without requeue", eventArgs.DeliveryTag);
-            await _channel!.BasicNackAsync(deliveryTag: eventArgs.DeliveryTag, multiple: false, requeue: false, cancellationToken: cancellationToken);
+
+            try
+            {
+                await _channel!.BasicNackAsync(deliveryTag: eventArgs.DeliveryTag, multiple: false, requeue: false, cancellationToken: CancellationToken.None);
+            }
+            catch (Exception nackEx)
+            {
+                _logger.LogError(nackEx, "Failed to nack message (deliveryTag: {DeliveryTag}); it may be redelivered and reprocessed", eventArgs.DeliveryTag);
+            }
         }
     }
 
