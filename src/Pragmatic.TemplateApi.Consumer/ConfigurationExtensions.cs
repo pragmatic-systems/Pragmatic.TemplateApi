@@ -9,7 +9,7 @@ using RabbitMQ.Client;
 
 namespace Pragmatic.TemplateApi.Consumer;
 
-public static class ServiceCollectionExtensions
+public static class ConfigurationExtensions
 {
     public static IServiceCollection AddRabbitConsumer(this IServiceCollection services, IConfiguration configuration)
     {
@@ -28,10 +28,7 @@ public static class ServiceCollectionExtensions
 
     public static IHealthChecksBuilder AddRabbitMqHealthcheck(this IHealthChecksBuilder builder)
     {
-        // NOTE: Due to integration test lifecycle, connectionString is overriden in the config after Build, but before AppStart.
-        // Because of this we can't inject the raw config values directly into the RabbitMq Healthcheck.
-        // The 9.0.0 health check never disposes the connection it is given, so it must be one shared long-lived instance.
-        builder.Services.AddSingleton<IConnection>(sp =>
+        return builder.AddRabbitMQ(sp =>
         {
             var options = sp.GetRequiredService<IOptions<RabbitOptions>>().Value;
             var connectionString = options.ConnectionString
@@ -43,9 +40,7 @@ public static class ServiceCollectionExtensions
                 AutomaticRecoveryEnabled = true
             };
 
-            return factory.CreateConnectionAsync().GetAwaiter().GetResult();
-        });
-
-        return builder.AddRabbitMQ(name: "Message Broker");
+            return factory.CreateConnectionAsync();
+        }, "Message Broker");
     }
 }
