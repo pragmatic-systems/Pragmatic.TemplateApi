@@ -351,9 +351,6 @@ public class TestRuntime : IAsyncDisposable
                         { "ConnectionStrings:PostgresDb", postgresContainer.GetConnectionString() },
                         { "RabbitMQ:ConnectionString", rabbitMqContainer.GetConnectionString() },
                         { "RabbitMQ:QueueName", "todo-message" },
-
-                        // Tests invoke the re-drive explicitly via DlqReDriveService, so the scheduled loop must stay off.
-                        { "RabbitMQ:ReDriveEnabled", "false" },
                     };
 
                     b.Add(config);

@@ -37,10 +37,6 @@ public class TestContext
     /// </summary>
     public string PoisonTodoDescription { get; private set; } = string.Empty;
 
-    /// <summary>
-    /// Result of the last dead letter re-drive invoked from a test step.
-    /// </summary>
-
     public Dictionary<string, TestUser> Users { get; private set; } = new Dictionary<string, TestUser>();
 
     public HttpResponseMessage? LastResponse { get; set; }
