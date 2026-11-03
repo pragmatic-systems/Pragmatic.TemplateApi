@@ -10,6 +10,7 @@ using Microsoft.Extensions.Configuration.Memory;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Protocols;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
+using Polly;
 using Pragmatic.TemplateApi.Core.Handlers;
 using Pragmatic.TemplateApi.Integration.Tests.Infrastructure.Auth;
 using RabbitMQ.Client;
@@ -211,56 +212,33 @@ public class TestRuntime : IAsyncDisposable
     {
         var definitions = File.ReadAllText(GetRabbitDefinitionsPath());
 
-        using var client = new HttpClient
+        using var client = CreateRabbitClient(rabbitMqContainer);
+        var content = new StringContent(definitions, Encoding.UTF8, "application/json");
+
+        await Policy
+            .Handle<Exception>()
+            .WaitAndRetryAsync(
+                Enumerable.Range(0, 15)
+                    .Select(i => TimeSpan.FromSeconds(1)))
+            .ExecuteAsync(async () =>
+            {
+                using var response = await client.PostAsync("definitions", content);
+                response.EnsureSuccessStatusCode();
+            });
+    }
+
+    private static HttpClient CreateRabbitClient(RabbitMqContainer rabbitMqContainer)
+    {
+        var client = new HttpClient
         {
             BaseAddress = new Uri($"http://{rabbitMqContainer.Hostname}:{rabbitMqContainer.GetMappedPublicPort(15672)}/api/"), // trailing slash so relative paths resolve under /api
             Timeout = TimeSpan.FromSeconds(10),
         };
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
             "Basic", Convert.ToBase64String(Encoding.UTF8.GetBytes("local:local")));
-
-        var content = new StringContent(definitions, Encoding.UTF8, "application/json");
-
-        // The management API may not accept requests immediately after the broker reports started.
-        HttpResponseMessage response = null;
-        Exception lastError = null;
-        for (var attempt = 0; attempt < 10 && (response is null || !response.IsSuccessStatusCode); attempt++)
-        {
-            try
-            {
-                response?.Dispose();
-                response = await client.PostAsync("definitions", content);
-                lastError = null;
-            }
-            catch (Exception ex)
-            {
-                response?.Dispose();
-                response = null;
-                lastError = ex;
-            }
-
-            if (attempt < 9)
-            {
-                await Task.Delay(TimeSpan.FromSeconds(1));
-            }
-        }
-
-        using (response)
-        {
-            if (response is null || !response.IsSuccessStatusCode)
-            {
-                var detail = response is null
-                    ? lastError?.Message ?? "unknown error"
-                    : $"{(int)response.StatusCode} {response.ReasonPhrase}";
-
-                throw new InvalidOperationException($"Failed to import rabbitmq/definitions.json into the test broker ({detail}).", lastError);
-            }
-        }
+        return client;
     }
 
-    /// <summary>
-    /// Resolves the canonical RabbitMQ topology file, copied to the test output at build time.
-    /// </summary>
     private static string GetRabbitDefinitionsPath()
     {
         var path = Path.Combine(AppContext.BaseDirectory, "rabbitmq", "definitions.json");
