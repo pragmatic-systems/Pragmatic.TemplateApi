@@ -106,8 +106,8 @@ Realm `todolist` is pre-configured on startup (see [Keycloak (pre-configured)](#
 
 ### RabbitMQ
 Url (management UI): http://localhost:15672
-Username: admin
-Password: password
+Username: local
+Password: local
 
 AMQP connection string: `amqp://local:local@localhost:5672`
 

@@ -216,7 +216,8 @@ public class TestRuntime : IAsyncDisposable
         var content = new StringContent(definitions, Encoding.UTF8, "application/json");
 
         await Policy
-            .Handle<Exception>()
+            .Handle<HttpRequestException>()
+            .Or<TaskCanceledException>()
             .WaitAndRetryAsync(
                 Enumerable.Range(0, 15)
                     .Select(i => TimeSpan.FromSeconds(1)))
