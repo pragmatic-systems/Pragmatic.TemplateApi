@@ -52,11 +52,11 @@ public sealed class TodoMessageConsumer : BackgroundService
 
         var consumer = new AsyncEventingBasicConsumer(_channel);
         consumer.ReceivedAsync += OnMessageReceived;
-        await _channel.BasicConsumeAsync(queue: _options.QueueName, autoAck: false, consumer: consumer, cancellationToken: stoppingToken);
+        await _channel.BasicConsumeAsync(queue: RabbitNames.Queue, autoAck: false, consumer: consumer, cancellationToken: stoppingToken);
 
         _logger.LogInformation(
             "Started consuming from queue '{Queue}' (prefetch: {PrefetchCount})",
-            _options.QueueName,
+            RabbitNames.Queue,
             _options.PrefetchCount);
 
         try

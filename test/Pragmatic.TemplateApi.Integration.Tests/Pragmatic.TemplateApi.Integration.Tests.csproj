@@ -36,4 +36,8 @@
     <ProjectReference Include="..\..\src\Pragmatic.TemplateApi.Consumer\Pragmatic.TemplateApi.Consumer.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="..\..\rabbitmq\definitions.json" Link="rabbitmq\definitions.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

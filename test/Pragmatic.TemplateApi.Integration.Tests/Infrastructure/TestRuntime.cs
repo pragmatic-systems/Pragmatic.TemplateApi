@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System.Net.Http.Headers;
+using System.Text;
 using System.Text.Json;
 using DotNet.Testcontainers.Builders;
 using DotNet.Testcontainers.Containers;
@@ -114,10 +115,11 @@ public class TestRuntime : IAsyncDisposable
             .Build();
         RustFsContainer = rustFsContainer;
 
-        // Configure RabbitMQ
+        // Configure RabbitMQ - the repo's canonical definitions file is imported into the broker after start.
         var rabbitMqContainer = new RabbitMqBuilder("rabbitmq:4.1-management")
             .WithUsername("local")
             .WithPassword("local")
+            .WithPortBinding("", "15672") // management API (random host port), used to import the definitions
             .WithAutoRemove(true)
             .Build();
         RabbitMqContainer = rabbitMqContainer;
@@ -127,7 +129,7 @@ public class TestRuntime : IAsyncDisposable
         await rustFsContainer.StartAsync();
         await rabbitMqContainer.StartAsync();
 
-        await EnsureRabbitTopology(rabbitMqContainer);
+        await ImportRabbitDefinitions(rabbitMqContainer);
 
         // Create SSL Certificate
         SigningCertificate = PemCertificate.Create();
@@ -203,20 +205,74 @@ public class TestRuntime : IAsyncDisposable
     }
 
     /// <summary>
-    /// Declares the topology the Consumer expects, mirroring the local RabbitMQ definitions.
+    /// Imports the repo's canonical rabbitmq/definitions.json via (POST /api/definitions).
     /// </summary>
-    private static async Task EnsureRabbitTopology(RabbitMqContainer rabbitMqContainer)
+    private static async Task ImportRabbitDefinitions(RabbitMqContainer rabbitMqContainer)
     {
-        var factory = new ConnectionFactory { Uri = new Uri(rabbitMqContainer.GetConnectionString()) };
-        await using var connection = await factory.CreateConnectionAsync();
-        await using var channel = await connection.CreateChannelAsync();
+        var definitions = File.ReadAllText(GetRabbitDefinitionsPath());
 
-        // Single source of truth for the topology, so the test broker can't drift from the app.
-        await Consumer.RabbitTopology.EnsureTopologyAsync(channel, new Consumer.RabbitOptions());
+        using var client = new HttpClient
+        {
+            BaseAddress = new Uri($"http://{rabbitMqContainer.Hostname}:{rabbitMqContainer.GetMappedPublicPort(15672)}/api/"), // trailing slash so relative paths resolve under /api
+            Timeout = TimeSpan.FromSeconds(10),
+        };
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Basic", Convert.ToBase64String(Encoding.UTF8.GetBytes("local:local")));
+
+        var content = new StringContent(definitions, Encoding.UTF8, "application/json");
+
+        // The management API may not accept requests immediately after the broker reports started.
+        HttpResponseMessage response = null;
+        Exception lastError = null;
+        for (var attempt = 0; attempt < 10 && (response is null || !response.IsSuccessStatusCode); attempt++)
+        {
+            try
+            {
+                response?.Dispose();
+                response = await client.PostAsync("definitions", content);
+                lastError = null;
+            }
+            catch (Exception ex)
+            {
+                response?.Dispose();
+                response = null;
+                lastError = ex;
+            }
+
+            if (attempt < 9)
+            {
+                await Task.Delay(TimeSpan.FromSeconds(1));
+            }
+        }
+
+        using (response)
+        {
+            if (response is null || !response.IsSuccessStatusCode)
+            {
+                var detail = response is null
+                    ? lastError?.Message ?? "unknown error"
+                    : $"{(int)response.StatusCode} {response.ReasonPhrase}";
+
+                throw new InvalidOperationException($"Failed to import rabbitmq/definitions.json into the test broker ({detail}).", lastError);
+            }
+        }
     }
 
-    // Mirrors the Consumer's RabbitOptions defaults, which are the single source of truth for the topology names.
-    private static readonly Consumer.RabbitOptions RabbitOptionsDefaults = new();
+    /// <summary>
+    /// Resolves the canonical RabbitMQ topology file, copied to the test output at build time.
+    /// </summary>
+    private static string GetRabbitDefinitionsPath()
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "rabbitmq", "definitions.json");
+        if (!File.Exists(path))
+        {
+            throw new FileNotFoundException(
+                $"RabbitMQ definitions file not found at '{path}'. Expected a build-time copy of the repo's rabbitmq/definitions.json.",
+                path);
+        }
+
+        return path;
+    }
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -247,7 +303,7 @@ public class TestRuntime : IAsyncDisposable
         await using (connection)
         await using (channel)
         {
-            await PublishMessage(channel, RabbitOptionsDefaults.ExchangeName, RabbitOptionsDefaults.QueueName, new InsertTodo(title, description, dueDate));
+            await PublishMessage(channel, Consumer.RabbitNames.Exchange, Consumer.RabbitNames.Queue, new InsertTodo(title, description, dueDate));
         }
     }
 
@@ -261,7 +317,7 @@ public class TestRuntime : IAsyncDisposable
         await using (connection)
         await using (channel)
         {
-            await PublishMessage(channel, RabbitOptionsDefaults.ExchangeName, RabbitOptionsDefaults.QueueName, new InsertTodo(null, description, dueDate));
+            await PublishMessage(channel, Consumer.RabbitNames.Exchange, Consumer.RabbitNames.Queue, new InsertTodo(null, description, dueDate));
         }
     }
 
@@ -277,7 +333,7 @@ public class TestRuntime : IAsyncDisposable
         await using (connection)
         await using (channel)
         {
-            while (await channel.BasicGetAsync(queue: RabbitOptionsDefaults.DeadLetterQueueName, autoAck: true) is { } result)
+            while (await channel.BasicGetAsync(queue: Consumer.RabbitNames.DeadLetterQueue, autoAck: true) is { } result)
             {
                 var payload = Encoding.UTF8.GetString(result.Body.ToArray());
                 lock (_deadLetterLock)
@@ -350,7 +406,6 @@ public class TestRuntime : IAsyncDisposable
                     {
                         { "ConnectionStrings:PostgresDb", postgresContainer.GetConnectionString() },
                         { "RabbitMQ:ConnectionString", rabbitMqContainer.GetConnectionString() },
-                        { "RabbitMQ:QueueName", "todo-message" },
                     };
 
                     b.Add(config);
