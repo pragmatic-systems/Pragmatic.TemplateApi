@@ -108,8 +108,9 @@ public static class ConfigurationExtensions
             var connection = configuration.GetConnectionString("PostgresDb");
             ArgumentException.ThrowIfNullOrEmpty(connection);
 
-            hfConfig.UsePostgreSqlStorage(bootstrapper =>
-                bootstrapper.UseNpgsqlConnection(connection));
+            hfConfig.UsePostgreSqlStorage(
+                bootstrapper => bootstrapper.UseNpgsqlConnection(connection),
+                new PostgreSqlStorageOptions { PrepareSchemaIfNecessary = false });
         });
 
         return services;
