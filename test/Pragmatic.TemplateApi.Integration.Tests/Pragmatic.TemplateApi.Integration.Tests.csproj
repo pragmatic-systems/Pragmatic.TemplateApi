@@ -34,6 +34,7 @@
     <ProjectReference Include="..\..\src\Pragmatic.TemplateApi.Api\Pragmatic.TemplateApi.Api.csproj" />
     <ProjectReference Include="..\..\src\Pragmatic.TemplateApi.Worker\Pragmatic.TemplateApi.Worker.csproj" />
     <ProjectReference Include="..\..\src\Pragmatic.TemplateApi.Consumer\Pragmatic.TemplateApi.Consumer.csproj" />
+    <ProjectReference Include="..\..\src\Pragmatic.TemplateApi.Provisioning\Pragmatic.TemplateApi.Provisioning.csproj" />
   </ItemGroup>
 
   <ItemGroup>

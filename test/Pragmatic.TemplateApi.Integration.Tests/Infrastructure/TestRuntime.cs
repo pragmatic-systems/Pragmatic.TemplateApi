@@ -13,6 +13,7 @@ using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Polly;
 using Pragmatic.TemplateApi.Core.Handlers;
 using Pragmatic.TemplateApi.Integration.Tests.Infrastructure.Auth;
+using Pragmatic.TemplateApi.Provisioning;
 using RabbitMQ.Client;
 using Testcontainers.PostgreSql;
 using Testcontainers.RabbitMq;
@@ -132,6 +133,9 @@ public class TestRuntime : IAsyncDisposable
 
         await ImportRabbitDefinitions(rabbitMqContainer);
 
+        // The apps no longer self-provision - run the same steps the external provisioner does.
+        await ProvisionInfrastructureAsync(postgresContainer, rustFsContainer);
+
         // Create SSL Certificate
         SigningCertificate = PemCertificate.Create();
 
@@ -226,6 +230,21 @@ public class TestRuntime : IAsyncDisposable
                 using var response = await client.PostAsync("definitions", content);
                 response.EnsureSuccessStatusCode();
             });
+    }
+
+    /// <summary>
+    /// Provisions the Postgres schema, Hangfire tables and the S3 bucket - the same steps
+    /// the external provisioner runs, since the apps no longer self-provision.
+    /// </summary>
+    private static async Task ProvisionInfrastructureAsync(PostgreSqlContainer postgresContainer, IContainer rustFsContainer)
+    {
+        var connectionString = postgresContainer.GetConnectionString();
+        Migrator.EnsureDb(connectionString);
+        Migrator.Migrate(connectionString);
+        HangfireProvisioner.EnsureTables(connectionString);
+
+        var endpoint = $"http://{rustFsContainer.Hostname}:{rustFsContainer.GetMappedPublicPort(9000)}";
+        await StorageProvisioner.EnsureBucketAsync(endpoint, "admin", "secret", "us-east-1", "uploads");
     }
 
     private static HttpClient CreateRabbitClient(RabbitMqContainer rabbitMqContainer)

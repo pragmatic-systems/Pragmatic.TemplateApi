@@ -366,3 +366,4 @@ FodyWeavers.xsd
 
 # NCrunch
 /.NCrunch_Pragmatic.TemplateApi
+/test/Pragmatic.TemplateApi.Integration.Tests/Reqnroll/userid
