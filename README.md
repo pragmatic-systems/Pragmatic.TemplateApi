@@ -73,7 +73,7 @@ This solution contains a simple Todo List API with background Workerhost, a post
 ### To Run
 
 1. Start the local infrastructure: `docker compose -f docker-compose.infra.yml up -d`
-2. Provision it: `dotnet run --project src/Pragmatic.TemplateApi.Provisioning -- all` (the project's `launchSettings.json` supplies the local connection settings)
+2. Provision it: `dotnet run --project src/Pragmatic.TemplateApi.Provisioning` (the project's `launchSettings.json` supplies the local connection settings)
 3. Launch the apps: `Pragmatic.TemplateApi.Api`, `Pragmatic.TemplateApi.Worker` and `Pragmatic.TemplateApi.Consumer`
 
 ## Formatting
@@ -114,23 +114,20 @@ AMQP connection string: `amqp://local:local@localhost:5672`
 The durable `todo-message` queue on vhost `/` is pre-configured on startup via [`rabbitmq/definitions.json`](rabbitmq/definitions.json) (loaded with `load_definitions` from [`rabbitmq/rabbitmq.conf`](rabbitmq/rabbitmq.conf)).
 
 ### Provisioning
-The `Pragmatic.TemplateApi.Provisioning` tool is the single, idempotent provisioning step for infrastructure. The apps themselves only consume pre-provisioned infrastructure and fail fast if it is missing - they never create databases, schemas or buckets at startup.
+The `Pragmatic.TemplateApi.Provisioning` tool is the single, idempotent provisioning step for infrastructure. It:
 
-Targets (pass as the first argument, default `all`):
+* Ensures the database exists and applies the DbUp scripts in `src/Pragmatic.TemplateApi.Provisioning/Scripts`
+* Creates the Hangfire tables (Hangfire's own DDL, `hangfire` schema)
+* Creates the S3 bucket (RustFS locally, any S3-compatible endpoint in production)
 
-| Target | Effect |
-|--------|--------|
-| `db` | Ensures the target database exists and applies the DbUp scripts in `src/Pragmatic.TemplateApi.Provisioning/Scripts` |
-| `hangfire` | Creates the Hangfire tables (Hangfire's own DDL, `hangfire` schema) |
-| `storage` | Creates the S3 bucket (RustFS locally, any S3-compatible endpoint in production) |
-| `all` | All of the above |
+The apps themselves only consume pre-provisioned infrastructure and fail fast if it is missing - they never create databases, schemas or buckets at startup.
 
 Configuration (environment variables):
-* `DbConnectionString` - required for `db` and `hangfire`
-* `StorageEndpoint`, `StorageAccessKeyId`, `StorageSecretAccessKey` - required for `storage`
+* `DbConnectionString` - required
+* `StorageEndpoint`, `StorageAccessKeyId`, `StorageSecretAccessKey` - required
 * `StorageRegion` (default `us-east-1`), `StorageBucket` (default `uploads`)
 
-Local: `dotnet run --project src/Pragmatic.TemplateApi.Provisioning -- all` (its `Properties/launchSettings.json` carries the local connection settings).
+Local: `dotnet run --project src/Pragmatic.TemplateApi.Provisioning` (its `Properties/launchSettings.json` carries the local connection settings).
 
 CI / cluster: run the same tool as a one-shot migration job **before** rolling out the apps.
 

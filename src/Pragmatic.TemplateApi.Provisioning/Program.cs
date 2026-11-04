@@ -4,36 +4,11 @@ public static class Program
 {
     public static async Task<int> Main(string[] args)
     {
-        var target = (args.Length > 0 ? args[0] : "all").ToLowerInvariant();
-
-        Console.WriteLine($"Provisioning target: {target}");
-
         try
         {
-            switch (target)
-            {
-                case "db":
-                    ProvisionDb();
-                    break;
-
-                case "hangfire":
-                    ProvisionHangfire();
-                    break;
-
-                case "storage":
-                    await ProvisionStorageAsync();
-                    break;
-
-                case "all":
-                    ProvisionDb();
-                    ProvisionHangfire();
-                    await ProvisionStorageAsync();
-                    break;
-
-                default:
-                    Console.Error.WriteLine($"Unknown target '{target}'. Expected 'db', 'hangfire', 'storage' or 'all'.");
-                    return 2;
-            }
+            ProvisionDb();
+            ProvisionHangfire();
+            await ProvisionStorageAsync();
 
             Console.ForegroundColor = ConsoleColor.Green;
             Console.WriteLine("Success!");

@@ -3,7 +3,6 @@
   "profiles": {
     "Pragmatic.TemplateApi.Provisioning": {
       "commandName": "Project",
-      "commandLineArgs": "all",
       "environmentVariables": {
         "DbConnectionString": "Host=localhost;Port=5432;Username=postgres;Password=password;Database=my-app-db;",
         "StorageEndpoint": "http://localhost:9000",
