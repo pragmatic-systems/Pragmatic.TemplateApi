@@ -233,18 +233,39 @@ public class TestRuntime : IAsyncDisposable
     }
 
     /// <summary>
-    /// Provisions the Postgres schema, Hangfire tables and the S3 bucket - the same steps
-    /// the external provisioner runs, since the apps no longer self-provision.
+    /// Provisions the Postgres schema, Hangfire tables and the S3 bucket by running the
+    /// external provisioner's entry point end-to-end, since the apps no longer self-provision.
     /// </summary>
     private static async Task ProvisionInfrastructureAsync(PostgreSqlContainer postgresContainer, IContainer rustFsContainer)
     {
-        var connectionString = postgresContainer.GetConnectionString();
-        Migrator.EnsureDb(connectionString);
-        Migrator.Migrate(connectionString);
-        HangfireProvisioner.EnsureTables(connectionString);
+        var environment = new Dictionary<string, string>
+        {
+            ["DbConnectionString"] = postgresContainer.GetConnectionString(),
+            ["StorageEndpoint"] = $"http://{rustFsContainer.Hostname}:{rustFsContainer.GetMappedPublicPort(9000)}",
+            ["StorageAccessKeyId"] = "admin",
+            ["StorageSecretAccessKey"] = "secret",
+            ["StorageRegion"] = "us-east-1",
+            ["StorageBucket"] = "uploads",
+        };
 
-        var endpoint = $"http://{rustFsContainer.Hostname}:{rustFsContainer.GetMappedPublicPort(9000)}";
-        await StorageProvisioner.EnsureBucketAsync(endpoint, "admin", "secret", "us-east-1", "uploads");
+        var previous = environment.Keys
+            .ToDictionary(key => key, key => Environment.GetEnvironmentVariable(key));
+
+        try
+        {
+            foreach (var (key, value) in environment)
+                Environment.SetEnvironmentVariable(key, value);
+
+            var exitCode = await Program.Main(Array.Empty<string>());
+
+            if (exitCode != 0)
+                throw new InvalidOperationException($"Provisioning failed with exit code {exitCode}.");
+        }
+        finally
+        {
+            foreach (var (key, value) in previous)
+                Environment.SetEnvironmentVariable(key, value);
+        }
     }
 
     private static HttpClient CreateRabbitClient(RabbitMqContainer rabbitMqContainer)
