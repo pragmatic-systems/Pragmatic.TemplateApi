@@ -1,0 +1,21 @@
+Pragmatic.TemplateApi
+Copyright (c) 2024-2026 Tristan Rhodes
+
+Licensed under the MIT License; see LICENSE.txt.
+
+This project builds on and depends on the following third-party
+software, each under its own license:
+
+  AWSSDK.S3                          Apache License 2.0
+  dbup-postgresql                    MIT
+  FluentValidation                   MIT
+  Hangfire                           BSD-3-Clause
+  Newtonsoft.Json                    MIT
+  Npgsql                             PostgreSQL License
+  Polly                              MIT
+  RabbitMQ.Client                    Mozilla Public License 2.0
+  Serilog                            Apache License 2.0
+  Swashbuckle.AspNetCore             MIT
+  SSH.NET                            Apache License 2.0
+  prometheus-net                     MIT
+  Pragmatic.CQRS                     MIT
