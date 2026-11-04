@@ -15,7 +15,6 @@ using Pragmatic.CQRS;
 using Pragmatic.TemplateApi.Core.Handlers;
 using Pragmatic.TemplateApi.Core.Validators;
 using Pragmatic.TemplateApi.Database;
-using Pragmatic.TemplateApi.Instrumentation.HostedServices;
 using Prometheus;
 using Serilog;
 
@@ -35,8 +34,6 @@ public static class ConfigurationExtensions
                 .UseSnakeCaseNamingConvention()
                 .EnableDetailedErrors();
         });
-
-        services.AddHostedService<PostgresInitService>();
 
         return services;
     }
@@ -111,8 +108,9 @@ public static class ConfigurationExtensions
             var connection = configuration.GetConnectionString("PostgresDb");
             ArgumentException.ThrowIfNullOrEmpty(connection);
 
-            hfConfig.UsePostgreSqlStorage(bootstrapper =>
-                bootstrapper.UseNpgsqlConnection(connection));
+            hfConfig.UsePostgreSqlStorage(
+                bootstrapper => bootstrapper.UseNpgsqlConnection(connection),
+                new PostgreSqlStorageOptions { PrepareSchemaIfNecessary = false });
         });
 
         return services;
@@ -171,8 +169,6 @@ public static class ConfigurationExtensions
 
             return new AmazonS3Client(new BasicAWSCredentials(options.AccessKeyId, options.SecretAccessKey), config);
         });
-
-        services.AddHostedService<BucketInitService>();
 
         return services;
     }

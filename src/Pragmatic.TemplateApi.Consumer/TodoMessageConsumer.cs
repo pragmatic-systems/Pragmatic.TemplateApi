@@ -8,6 +8,7 @@ using Pragmatic.CQRS;
 using Pragmatic.TemplateApi.Core.Handlers;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
+using RabbitMQ.Client.Exceptions;
 
 namespace Pragmatic.TemplateApi.Consumer;
 
@@ -48,15 +49,17 @@ public sealed class TodoMessageConsumer : BackgroundService
         _connection = await factory.CreateConnectionAsync(cancellationToken: stoppingToken);
         _channel = await _connection.CreateChannelAsync(cancellationToken: stoppingToken);
 
+        await EnsureQueueProvisionedAsync(RabbitNames.Queue, stoppingToken);
+
         await _channel.BasicQosAsync(prefetchSize: 0, prefetchCount: (ushort)_options.PrefetchCount, global: false, cancellationToken: stoppingToken);
 
         var consumer = new AsyncEventingBasicConsumer(_channel);
         consumer.ReceivedAsync += OnMessageReceived;
-        await _channel.BasicConsumeAsync(queue: _options.QueueName, autoAck: false, consumer: consumer, cancellationToken: stoppingToken);
+        await _channel.BasicConsumeAsync(queue: RabbitNames.Queue, autoAck: false, consumer: consumer, cancellationToken: stoppingToken);
 
         _logger.LogInformation(
             "Started consuming from queue '{Queue}' (prefetch: {PrefetchCount})",
-            _options.QueueName,
+            RabbitNames.Queue,
             _options.PrefetchCount);
 
         try
@@ -66,6 +69,27 @@ public sealed class TodoMessageConsumer : BackgroundService
         catch (OperationCanceledException)
         {
             // Expected when the host is stopping.
+        }
+    }
+
+    /// <summary>
+    /// The topology is provisioned externally from the repo's rabbitmq/definitions.json.
+    /// Passive check so a missing queue fails fast with an actionable message instead of an opaque AMQP 404.
+    /// </summary>
+    private async Task EnsureQueueProvisionedAsync(string queueName, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _channel!.QueueDeclareAsync(queue: queueName, durable: false, exclusive: false, autoDelete: false, passive: true, cancellationToken: cancellationToken);
+        }
+        catch (OperationInterruptedException ex) when (ex.ShutdownReason?.ReplyCode == 404)
+        {
+            _logger.LogError(ex,
+                "RabbitMQ queue '{Queue}' was not found. The topology has not been provisioned - import rabbitmq/definitions.json into the broker before starting the consumer.",
+                queueName);
+
+            throw new InvalidOperationException(
+                $"RabbitMQ queue '{queueName}' was not found. Provision the topology from rabbitmq/definitions.json first.", ex);
         }
     }
 

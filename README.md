@@ -35,7 +35,7 @@ To Create a project:
   - [Postgres (+ PgAdmin)](#postgres--pgadmin)
   - [Keycloak](#keycloak)
   - [RabbitMQ](#rabbitmq)
-  - [Database Migrations](#database-migrations)
+  - [Provisioning](#provisioning)
   - [Authentication](#authentication)
 - [Local Keycloak Hosting](#local-keycloak-hosting)
   - [Keycloak SSL Setup](#keycloak-ssl-setup)
@@ -52,12 +52,12 @@ To Create a project:
 
 ## Overview
 
-This solution contains a simple Todo List API with background Workerhost, a postgres DB, and a DB up project to handle DB migrations.
+This solution contains a simple Todo List API with background Workerhost, a postgres DB, and a one-shot provisioning tool for databases, Hangfire schemas and S3 buckets.
 
 ### Features
 * OpenIdConnect support for JWT based auth and RBAC.
 * `/_system/Ping`, `/_system/Health`, and `/_system/Metrics` endpoints for service observability.
-* Database migration project to managed postgres migrations.
+* One-shot provisioning tool (`Pragmatic.TemplateApi.Provisioning`) for the database schema, Hangfire tables and S3 bucket.
 * Unit Tests, Integration Tests and Benchmarks with packaged reports.
 * Test Server / Test Container based test suite with Specflow.
 
@@ -72,9 +72,9 @@ This solution contains a simple Todo List API with background Workerhost, a post
 
 ### To Run
 
-Run `docker compose -f docker-compose.infra.yml up` 
-Launch apps:
-* Pragmatic.TemplateApi.API
+1. Start the local infrastructure: `docker compose -f docker-compose.infra.yml up -d`
+2. Provision it: `dotnet run --project src/Pragmatic.TemplateApi.Provisioning` (the project's `launchSettings.json` supplies the local connection settings)
+3. Launch the apps: `Pragmatic.TemplateApi.Api`, `Pragmatic.TemplateApi.Worker` and `Pragmatic.TemplateApi.Consumer`
 
 ## Formatting
 The project needs to be correctly formatted to pass the build. To format the project using the dotnet format tool - 
@@ -106,15 +106,30 @@ Realm `todolist` is pre-configured on startup (see [Keycloak (pre-configured)](#
 
 ### RabbitMQ
 Url (management UI): http://localhost:15672
-Username: admin
-Password: password
+Username: local
+Password: local
 
 AMQP connection string: `amqp://local:local@localhost:5672`
 
 The durable `todo-message` queue on vhost `/` is pre-configured on startup via [`rabbitmq/definitions.json`](rabbitmq/definitions.json) (loaded with `load_definitions` from [`rabbitmq/rabbitmq.conf`](rabbitmq/rabbitmq.conf)).
 
-### Database Migrations
-Currently we run migrations on app-start, this simplifies startup and development, but for more mature projects we can separate the launch application and run this prior to deploying a cluster.
+### Provisioning
+The `Pragmatic.TemplateApi.Provisioning` tool is the single, idempotent provisioning step for infrastructure. It:
+
+* Ensures the database exists and applies the DbUp scripts in `src/Pragmatic.TemplateApi.Provisioning/Scripts`
+* Creates the Hangfire tables (Hangfire's own DDL, `hangfire` schema)
+* Creates the S3 bucket (RustFS locally, any S3-compatible endpoint in production)
+
+The apps themselves only consume pre-provisioned infrastructure and fail fast if it is missing - they never create databases, schemas or buckets at startup.
+
+Configuration (environment variables):
+* `DbConnectionString` - required
+* `StorageEndpoint`, `StorageAccessKeyId`, `StorageSecretAccessKey` - required
+* `StorageRegion` (default `us-east-1`), `StorageBucket` (default `uploads`)
+
+Local: `dotnet run --project src/Pragmatic.TemplateApi.Provisioning` (its `Properties/launchSettings.json` carries the local connection settings).
+
+CI / cluster: run the same tool as a one-shot migration job **before** rolling out the apps.
 
 ### Authentication
 If you have an existing AWS Cognito or Azure Entra setup, you can skip local keycloak setup and register the application with them.

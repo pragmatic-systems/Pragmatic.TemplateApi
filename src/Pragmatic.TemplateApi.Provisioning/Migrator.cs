@@ -3,7 +3,7 @@ using DbUp;
 using Npgsql;
 using Polly;
 
-namespace Pragmatic.TemplateApi.Database;
+namespace Pragmatic.TemplateApi.Provisioning;
 
 public static class Migrator
 {

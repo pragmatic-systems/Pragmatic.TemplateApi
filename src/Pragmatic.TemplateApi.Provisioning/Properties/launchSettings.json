@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json.schemastore.org/launchsettings.json",
+  "profiles": {
+    "Pragmatic.TemplateApi.Provisioning": {
+      "commandName": "Project",
+      "environmentVariables": {
+        "DbConnectionString": "Host=localhost;Port=5432;Username=postgres;Password=password;Database=my-app-db;",
+        "StorageEndpoint": "http://localhost:9000",
+        "StorageAccessKeyId": "admin",
+        "StorageSecretAccessKey": "secret",
+        "StorageRegion": "us-east-1",
+        "StorageBucket": "uploads"
+      },
+      "dotnetRunMessages": true
+    }
+  }
+}
