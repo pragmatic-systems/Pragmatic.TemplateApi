@@ -30,6 +30,7 @@ public class Program
             builder.Services.WithMediatr();
             builder.Services.WithOpenIdConnect(builder.Configuration);
             builder.Services.WithAuthorizationPolicy();
+            builder.Services.WithMcpServer();
             builder.Services.WithHangfire(builder.Configuration);
             builder.Services.AddControllers();
             builder.Services.AddPostgresHealthChecks(builder.Configuration);
@@ -47,6 +48,7 @@ public class Program
             app.UseAuthorization();
             app.UseHangfireDashboard();
             app.MapControllers();
+            app.ConfigureMcp();
 
             Log.Logger.Information("Starting Application");
 
