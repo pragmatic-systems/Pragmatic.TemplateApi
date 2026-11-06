@@ -18,7 +18,9 @@ using Microsoft.IdentityModel.Protocols;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
+using ModelContextProtocol.Protocol;
 using Pragmatic.TemplateApi.Api.Auth;
+using Pragmatic.TemplateApi.Api.Mcp;
 using Pragmatic.TemplateApi.Instrumentation;
 
 namespace Pragmatic.TemplateApi.Api;
@@ -51,6 +53,27 @@ public static class ConfigurationExtensions
                 return securityRequirement;
             });
         });
+
+        return services;
+    }
+
+    public static IServiceCollection WithMcpServer(this IServiceCollection services)
+    {
+        services
+            .AddMcpServer(options =>
+            {
+                options.ServerInfo = new Implementation
+                {
+                    Name = "Pragmatic.TemplateApi",
+                    Version = "1.0.0",
+                };
+
+                options.ServerInstructions =
+                    "MCP server for the Pragmatic Template API. Tools mirror the Todo List REST endpoints. " +
+                    "A Cognito JWT with the matching role claim is required: 'TodoList:Read' to list, 'TodoList:Write' to add.";
+            })
+            .WithHttpTransport(options => options.Stateless = true)
+            .WithTools<TodoListMcpTools>();
 
         return services;
     }
@@ -134,6 +157,15 @@ public static class ConfigurationExtensions
             .AddPolicy(Roles.TodoListWrite, policy => policy.RequireClaim(ClaimTypes.Role, Roles.TodoListWrite));
 
         return services;
+    }
+
+    public static WebApplication ConfigureMcp(this WebApplication app)
+    {
+        // The MCP endpoint sits behind the same Cognito JWT authentication as the REST API;
+        // per-tool role policies are enforced inside the tool implementations.
+        app.MapMcp("/mcp").RequireAuthorization();
+
+        return app;
     }
 
     public static WebApplication ConfigureSwagger(this WebApplication app)
