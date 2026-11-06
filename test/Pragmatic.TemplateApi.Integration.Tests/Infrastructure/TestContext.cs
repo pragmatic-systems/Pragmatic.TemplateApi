@@ -3,6 +3,8 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Security.Claims;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Polly;
 using Pragmatic.TemplateApi.Api.Auth;
@@ -40,6 +42,18 @@ public class TestContext
     public Dictionary<string, TestUser> Users { get; private set; } = new Dictionary<string, TestUser>();
 
     public HttpResponseMessage? LastResponse { get; set; }
+
+    /// <summary>
+    /// The raw HTTP response of the last MCP (JSON-RPC over HTTP) request.
+    /// </summary>
+    public HttpResponseMessage? McpRawResponse { get; private set; }
+
+    /// <summary>
+    /// The parsed JSON-RPC response of the last MCP request.
+    /// </summary>
+    public JsonNode? McpResponse { get; private set; }
+
+    private static readonly JsonSerializerOptions McpJsonOptions = new(JsonSerializerDefaults.Web);
 
     public string? HangfireCookieValue { get; set; }
 
@@ -86,6 +100,84 @@ public class TestContext
             var result = await client.GetAsync(path);
             return result;
         });
+    }
+
+    /// <summary>
+    /// Sends a JSON-RPC 2.0 message to the stateless MCP endpoint (/mcp) using the current user's JWT.
+    /// </summary>
+    public async Task SendMcpRequestAsync(string method, object? id = null, object? args = null)
+    {
+        var message = new Dictionary<string, object?>
+        {
+            ["jsonrpc"] = "2.0",
+            ["method"] = method,
+        };
+
+        if (id is not null)
+            message["id"] = id;
+
+        if (args is not null)
+            message["params"] = args;
+
+        using var client = _testRuntime.GetSubjectApi().CreateClient();
+        if (CurrentUser != null)
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", CurrentUser.UserJwt);
+
+        client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+        client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("text/event-stream"));
+
+        using var content = new StringContent(JsonSerializer.Serialize(message, McpJsonOptions), Encoding.UTF8, "application/json");
+
+        var previous = McpRawResponse;
+        McpRawResponse = await RetryPolicy.ExecuteAsync(async () => await client.PostAsync("mcp", content));
+        previous?.Dispose();
+    }
+
+    /// <summary>
+    /// Parses the last MCP response body into a JSON-RPC message, supporting both
+    /// application/json and text/event-stream (SSE) response media types.
+    /// </summary>
+    public async Task<JsonNode?> ParseMcpResponseAsync()
+    {
+        var response = McpRawResponse ?? throw new InvalidOperationException(
+            "No MCP response is available. Send an MCP request before inspecting the response.");
+
+        var body = await response.Content.ReadAsStringAsync();
+        var mediaType = response.Content.Headers.ContentType?.MediaType;
+        JsonNode? parsed = null;
+
+        if (mediaType is null || mediaType.StartsWith("application/json", StringComparison.OrdinalIgnoreCase))
+        {
+            parsed = body.Length > 0 ? JsonNode.Parse(body) : null;
+        }
+        else
+        {
+            // SSE framing: each JSON-RPC message arrives as a 'data:' line; keep the last one carrying an 'id'.
+            foreach (var line in body.Split('\n'))
+            {
+                var trimmed = line.Trim();
+                if (!trimmed.StartsWith("data:", StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                var payload = trimmed["data:".Length..].Trim();
+                if (payload.Length == 0)
+                    continue;
+
+                try
+                {
+                    var candidate = JsonNode.Parse(payload);
+                    if (candidate?["id"] is not null)
+                        parsed = candidate;
+                }
+                catch (JsonException)
+                {
+                    // Non-JSON SSE frames (e.g. keep-alive comments) are ignored.
+                }
+            }
+        }
+
+        McpResponse = parsed;
+        return parsed;
     }
 
     public async Task PostAsJsonAsync<T>(string path, T payload)
