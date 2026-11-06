@@ -159,36 +159,33 @@ this.ScenarioInitialize(scenarioInfo, ruleInfo);
             {
                 await this.ScenarioStartAsync();
 #line 7
- await testRunner.GivenAsync("We have user \'Dave\'", ((string)(null)), ((global::Reqnroll.Table)(null)), "Given ");
+ await testRunner.GivenAsync("We have user \'Dave\' with claims \'ReadWrite\'", ((string)(null)), ((global::Reqnroll.Table)(null)), "Given ");
 #line hidden
 #line 8
- await testRunner.AndAsync("User \'Dave\' has claims \'ReadWrite\'", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
-#line hidden
-#line 9
  await testRunner.WhenAsync("We are connecting as \'Dave\'", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
 #line hidden
-#line 10
+#line 9
  await testRunner.AndAsync("We send the MCP initialize request", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
 #line hidden
-#line 11
+#line 10
  await testRunner.ThenAsync("The MCP response should be an initialize result", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
 #line hidden
-#line 12
+#line 11
  await testRunner.AndAsync("The MCP server info should be \'Pragmatic.TemplateApi\'", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
 #line hidden
-#line 13
+#line 12
  await testRunner.WhenAsync("We send the MCP initialized notification", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
 #line hidden
-#line 14
+#line 13
  await testRunner.ThenAsync("The MCP notification should be accepted", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
 #line hidden
-#line 15
+#line 14
  await testRunner.WhenAsync("We list the MCP tools", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
 #line hidden
-#line 16
+#line 15
  await testRunner.ThenAsync("The MCP tools should include \'list_open_todos\'", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
 #line hidden
-#line 17
+#line 16
  await testRunner.AndAsync("The MCP tools should include \'add_todo\'", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
 #line hidden
             }
@@ -210,7 +207,7 @@ this.ScenarioInitialize(scenarioInfo, ruleInfo);
             global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("Add and list todo items via the MCP tools", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
             string[] tagsOfRule = ((string[])(null));
             global::Reqnroll.RuleInfo ruleInfo = null;
-#line 20
+#line 19
 this.ScenarioInitialize(scenarioInfo, ruleInfo);
 #line hidden
             if ((global::Reqnroll.TagHelper.ContainsIgnoreTag(scenarioInfo.CombinedTags) || global::Reqnroll.TagHelper.ContainsIgnoreTag(featureTags)))
@@ -220,32 +217,29 @@ this.ScenarioInitialize(scenarioInfo, ruleInfo);
             else
             {
                 await this.ScenarioStartAsync();
+#line 20
+ await testRunner.GivenAsync("We have user \'Dave\' with claims \'ReadWrite\'", ((string)(null)), ((global::Reqnroll.Table)(null)), "Given ");
+#line hidden
 #line 21
- await testRunner.GivenAsync("We have user \'Dave\'", ((string)(null)), ((global::Reqnroll.Table)(null)), "Given ");
-#line hidden
-#line 22
- await testRunner.AndAsync("User \'Dave\' has claims \'ReadWrite\'", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
-#line hidden
-#line 23
  await testRunner.WhenAsync("We are connecting as \'Dave\'", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
 #line hidden
-#line 24
+#line 22
  await testRunner.AndAsync("We send the MCP initialize request", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
 #line hidden
-#line 25
+#line 23
  await testRunner.AndAsync("We send the MCP initialized notification", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
 #line hidden
-#line 26
+#line 24
  await testRunner.WhenAsync("We call the MCP tool \'add_todo\' with title \'MCP Created Task\' and due date \'2026-" +
                         "03-01\'", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
 #line hidden
-#line 27
+#line 25
  await testRunner.ThenAsync("The MCP result should contain a todo item titled \'MCP Created Task\'", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
 #line hidden
-#line 28
+#line 26
  await testRunner.WhenAsync("We call the MCP tool \'list_open_todos\' without arguments", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
 #line hidden
-#line 29
+#line 27
  await testRunner.ThenAsync("The MCP result should be a list containing a todo item titled \'MCP Created Task\'", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
 #line hidden
             }
@@ -267,7 +261,7 @@ this.ScenarioInitialize(scenarioInfo, ruleInfo);
             global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("MCP add_todo is rejected for a read-only user", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
             string[] tagsOfRule = ((string[])(null));
             global::Reqnroll.RuleInfo ruleInfo = null;
-#line 32
+#line 30
 this.ScenarioInitialize(scenarioInfo, ruleInfo);
 #line hidden
             if ((global::Reqnroll.TagHelper.ContainsIgnoreTag(scenarioInfo.CombinedTags) || global::Reqnroll.TagHelper.ContainsIgnoreTag(featureTags)))
@@ -277,32 +271,29 @@ this.ScenarioInitialize(scenarioInfo, ruleInfo);
             else
             {
                 await this.ScenarioStartAsync();
-#line 33
- await testRunner.GivenAsync("We have user \'James\'", ((string)(null)), ((global::Reqnroll.Table)(null)), "Given ");
+#line 31
+ await testRunner.GivenAsync("We have user \'James\' with claims \'Read\'", ((string)(null)), ((global::Reqnroll.Table)(null)), "Given ");
 #line hidden
-#line 34
- await testRunner.AndAsync("User \'James\' has claims \'Read\'", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
-#line hidden
-#line 35
+#line 32
  await testRunner.WhenAsync("We are connecting as \'James\'", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
 #line hidden
-#line 36
+#line 33
  await testRunner.AndAsync("We send the MCP initialize request", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
 #line hidden
-#line 37
+#line 34
  await testRunner.AndAsync("We send the MCP initialized notification", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
 #line hidden
-#line 38
+#line 35
  await testRunner.WhenAsync("We call the MCP tool \'add_todo\' with title \'Should Not Be Created\' and due date \'" +
                         "2026-03-01\'", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
 #line hidden
-#line 39
+#line 36
  await testRunner.ThenAsync("The MCP call should be rejected", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
 #line hidden
-#line 40
+#line 37
  await testRunner.WhenAsync("We call the MCP tool \'list_open_todos\' without arguments", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
 #line hidden
-#line 41
+#line 38
  await testRunner.ThenAsync("The MCP result should not contain a todo item titled \'Should Not Be Created\'", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
 #line hidden
             }
@@ -324,7 +315,7 @@ this.ScenarioInitialize(scenarioInfo, ruleInfo);
             global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("MCP is rejected for anonymous callers", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
             string[] tagsOfRule = ((string[])(null));
             global::Reqnroll.RuleInfo ruleInfo = null;
-#line 44
+#line 41
 this.ScenarioInitialize(scenarioInfo, ruleInfo);
 #line hidden
             if ((global::Reqnroll.TagHelper.ContainsIgnoreTag(scenarioInfo.CombinedTags) || global::Reqnroll.TagHelper.ContainsIgnoreTag(featureTags)))
@@ -334,13 +325,13 @@ this.ScenarioInitialize(scenarioInfo, ruleInfo);
             else
             {
                 await this.ScenarioStartAsync();
-#line 45
+#line 42
  await testRunner.WhenAsync("We are connecting anonymously", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
 #line hidden
-#line 46
+#line 43
  await testRunner.AndAsync("We send the MCP initialize request", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
 #line hidden
-#line 47
+#line 44
  await testRunner.ThenAsync("The MCP response should be 401 Unauthorized", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
 #line hidden
             }

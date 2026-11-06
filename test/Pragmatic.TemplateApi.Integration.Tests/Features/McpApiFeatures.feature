@@ -4,8 +4,7 @@ Feature test for the Todo list MCP server endpoint.
 
 @mcp @api
 Scenario: MCP handshake and tool discovery
-	Given We have user 'Dave'
-	And User 'Dave' has claims 'ReadWrite'
+	Given We have user 'Dave' with claims 'ReadWrite'
 	When We are connecting as 'Dave'
 	And We send the MCP initialize request
 	Then The MCP response should be an initialize result
@@ -18,8 +17,7 @@ Scenario: MCP handshake and tool discovery
 
 @mcp @api
 Scenario: Add and list todo items via the MCP tools
-	Given We have user 'Dave'
-	And User 'Dave' has claims 'ReadWrite'
+	Given We have user 'Dave' with claims 'ReadWrite'
 	When We are connecting as 'Dave'
 	And We send the MCP initialize request
 	And We send the MCP initialized notification
@@ -30,8 +28,7 @@ Scenario: Add and list todo items via the MCP tools
 
 @mcp @api
 Scenario: MCP add_todo is rejected for a read-only user
-	Given We have user 'James'
-	And User 'James' has claims 'Read'
+	Given We have user 'James' with claims 'Read'
 	When We are connecting as 'James'
 	And We send the MCP initialize request
 	And We send the MCP initialized notification
