@@ -161,30 +161,27 @@ this.ScenarioInitialize(scenarioInfo, ruleInfo);
             {
                 await this.ScenarioStartAsync();
 #line 7
- await testRunner.GivenAsync("We have user \'Dave\'", ((string)(null)), ((global::Reqnroll.Table)(null)), "Given ");
+ await testRunner.GivenAsync("We have user \'Dave\' with claims \'Read\'", ((string)(null)), ((global::Reqnroll.Table)(null)), "Given ");
 #line hidden
 #line 8
- await testRunner.AndAsync("User \'Dave\' has claims \'Read\'", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
-#line hidden
-#line 9
  await testRunner.WhenAsync("We are connecting as \'Dave\'", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
 #line hidden
-#line 10
+#line 9
  await testRunner.AndAsync("We publish a poison todo item to the queue", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
 #line hidden
-#line 11
+#line 10
  await testRunner.ThenAsync("The dead letter queue should contain the poison message", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
 #line hidden
-#line 12
+#line 11
  await testRunner.WhenAsync("We get our TodoList", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
 #line hidden
-#line 13
+#line 12
  await testRunner.ThenAsync("The response should be 200 OK", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
 #line hidden
-#line 14
+#line 13
  await testRunner.AndAsync("The response should contain a Todo List", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
 #line hidden
-#line 15
+#line 14
  await testRunner.AndAsync("The result does not contain the poison todo item", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
 #line hidden
             }

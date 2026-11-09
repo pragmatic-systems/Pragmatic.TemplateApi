@@ -159,36 +159,33 @@ this.ScenarioInitialize(scenarioInfo, ruleInfo);
             {
                 await this.ScenarioStartAsync();
 #line 7
- await testRunner.GivenAsync("We have user \'HangfireAdmin\'", ((string)(null)), ((global::Reqnroll.Table)(null)), "Given ");
+ await testRunner.GivenAsync("We have user \'HangfireAdmin\' with claims \'HangfireDashboard\'", ((string)(null)), ((global::Reqnroll.Table)(null)), "Given ");
 #line hidden
 #line 8
- await testRunner.AndAsync("User \'HangfireAdmin\' has claims \'HangfireDashboard\'", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
-#line hidden
-#line 9
  await testRunner.WhenAsync("We are connecting as \'HangfireAdmin\'", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
 #line hidden
-#line 10
+#line 9
  await testRunner.AndAsync("We call hangfire login with bearer token", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
 #line hidden
-#line 11
+#line 10
  await testRunner.ThenAsync("The response should redirect to hangfire dashboard", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
 #line hidden
-#line 12
+#line 11
  await testRunner.AndAsync("The hangfire cookie should be present", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
 #line hidden
-#line 13
+#line 12
  await testRunner.WhenAsync("We call hangfire dashboard with cookie", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
 #line hidden
-#line 14
+#line 13
  await testRunner.ThenAsync("The response should be 200 OK", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
 #line hidden
-#line 15
+#line 14
  await testRunner.WhenAsync("We call hangfire logout", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
 #line hidden
-#line 16
+#line 15
  await testRunner.ThenAsync("The response should be 200 OK", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
 #line hidden
-#line 17
+#line 16
  await testRunner.AndAsync("The hangfire cookie should be removed", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
 #line hidden
             }
