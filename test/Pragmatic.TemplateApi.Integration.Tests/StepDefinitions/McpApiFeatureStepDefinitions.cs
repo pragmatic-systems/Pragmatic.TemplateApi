@@ -37,7 +37,7 @@ public sealed class McpApiFeatureStepDefinitions
     [Then("The MCP response should be an initialize result")]
     public void TheMcpResponseShouldBeAnInitializeResult()
     {
-        var response = _testContext.McpRawResponse;
+        var response = _testContext.LastResponse;
         response.ShouldNotBeNull();
         response.StatusCode.ShouldBe(HttpStatusCode.OK, "because an authenticated MCP initialize request should succeed");
 
@@ -61,7 +61,7 @@ public sealed class McpApiFeatureStepDefinitions
     [Then("The MCP notification should be accepted")]
     public void TheMcpNotificationShouldBeAccepted()
     {
-        var response = _testContext.McpRawResponse;
+        var response = _testContext.LastResponse;
         response.ShouldNotBeNull();
         ((int)response.StatusCode / 100).ShouldBe(2, "because the initialized notification should be accepted");
     }
@@ -161,7 +161,7 @@ public sealed class McpApiFeatureStepDefinitions
     [Then("The MCP response should be 401 Unauthorized")]
     public void TheMcpResponseShouldBeUnauthorized()
     {
-        var response = _testContext.McpRawResponse;
+        var response = _testContext.LastResponse;
         response.ShouldNotBeNull();
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized, "because anonymous MCP requests should be challenged");
     }
@@ -169,7 +169,7 @@ public sealed class McpApiFeatureStepDefinitions
     [Then("The MCP call should be rejected")]
     public void TheMcpCallShouldBeRejected()
     {
-        var response = _testContext.McpRawResponse;
+        var response = _testContext.LastResponse;
         response.ShouldNotBeNull();
 
         var node = _testContext.McpResponse;

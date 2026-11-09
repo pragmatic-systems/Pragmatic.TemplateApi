@@ -41,19 +41,21 @@ public class TestContext
 
     public Dictionary<string, TestUser> Users { get; private set; } = new Dictionary<string, TestUser>();
 
-    public HttpResponseMessage? LastResponse { get; set; }
-
-    /// <summary>
-    /// The raw HTTP response of the last MCP (JSON-RPC over HTTP) request.
-    /// </summary>
-    public HttpResponseMessage? McpRawResponse { get; private set; }
+    private HttpResponseMessage? _lastResponse;
+    public HttpResponseMessage? LastResponse
+    {
+        get { return _lastResponse; }
+        set
+        {
+            _lastResponse?.Dispose();
+            _lastResponse = value;
+        }
+    }
 
     /// <summary>
     /// The parsed JSON-RPC response of the last MCP request.
     /// </summary>
     public JsonNode? McpResponse { get; private set; }
-
-    private static readonly JsonSerializerOptions McpJsonOptions = new(JsonSerializerDefaults.Web);
 
     public string? HangfireCookieValue { get; set; }
 
@@ -103,21 +105,16 @@ public class TestContext
     }
 
     /// <summary>
-    /// Sends a JSON-RPC 2.0 message to the stateless MCP endpoint (/mcp) using the current user's JWT.
+    /// Sends a JSON-RPC 2.0 message to the MCP endpoint (/mcp) using the current user's JWT.
     /// </summary>
     public async Task SendMcpRequestAsync(string method, object? id = null, object? args = null)
     {
-        var message = new Dictionary<string, object?>
+        var message = new JsonRpcRequest
         {
-            ["jsonrpc"] = "2.0",
-            ["method"] = method,
+            Method = method,
+            Id = id,
+            Params = args,
         };
-
-        if (id is not null)
-            message["id"] = id;
-
-        if (args is not null)
-            message["params"] = args;
 
         using var client = _testRuntime.GetSubjectApi().CreateClient();
         if (CurrentUser != null)
@@ -126,11 +123,7 @@ public class TestContext
         client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
         client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("text/event-stream"));
 
-        using var content = new StringContent(JsonSerializer.Serialize(message, McpJsonOptions), Encoding.UTF8, "application/json");
-
-        var previous = McpRawResponse;
-        McpRawResponse = await RetryPolicy.ExecuteAsync(async () => await client.PostAsync("mcp", content));
-        previous?.Dispose();
+        LastResponse = await RetryPolicy.ExecuteAsync(async () => await client.PostAsJsonAsync("mcp", message));
     }
 
     /// <summary>
@@ -139,7 +132,7 @@ public class TestContext
     /// </summary>
     public async Task<JsonNode?> ParseMcpResponseAsync()
     {
-        var response = McpRawResponse ?? throw new InvalidOperationException(
+        var response = LastResponse ?? throw new InvalidOperationException(
             "No MCP response is available. Send an MCP request before inspecting the response.");
 
         var body = await response.Content.ReadAsStringAsync();
