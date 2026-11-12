@@ -59,16 +59,16 @@ This solution contains a simple Todo List API with background Workerhost, a post
 * `/_system/Ping`, `/_system/Health`, and `/_system/Metrics` endpoints for service observability.
 * One-shot provisioning tool (`Pragmatic.TemplateApi.Provisioning`) for the database schema, Hangfire tables and S3 bucket.
 * Unit Tests, Integration Tests and Benchmarks with packaged reports.
-* Test Server / Test Container based test suite with Specflow.
+* Test Server / Test Container based test suite with Reqnroll.
 
 ### Prerequisites
 
 | Requirement | Version | Notes |
 |-------------|---------|-------|
-| **.NET SDK** | 8.0.401+ (rollForward: latestMinor) | [Download](https://dotnet.microsoft.com/download) |
+| **.NET SDK** | 10.0.100+ (rollForward: latestMinor) | [Download](https://dotnet.microsoft.com/download) |
 | **Docker Desktop** | Latest stable | Required for `docker compose` and all local services |
 | **Git** | Latest | Required for cloning and versioning |
-| **Cake CLI** | 4.x | `dotnet tool install --global Cake.Tool` — used for the build pipeline |
+| **Cake CLI** | 6.x | `dotnet tool install --global Cake.Tool` — used for the build pipeline |
 
 ### To Run
 
