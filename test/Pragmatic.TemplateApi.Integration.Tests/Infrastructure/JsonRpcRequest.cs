@@ -3,7 +3,7 @@
 namespace Pragmatic.TemplateApi.Integration.Tests.Infrastructure;
 
 /// <summary>
-/// JSON-RPC 2.0 request envelope for the stateless MCP endpoint (/mcp).
+/// JSON-RPC 2.0 request envelope for the MCP endpoint (/mcp).
 /// </summary>
 public sealed class JsonRpcRequest
 {
@@ -12,7 +12,6 @@ public sealed class JsonRpcRequest
 
     public string Method { get; init; } = string.Empty;
 
-    // Omitted for notifications, as JSON-RPC 2.0 forbids a null id.
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public object? Id { get; init; }
 

@@ -139,11 +139,8 @@ public class TestContext
         var mediaType = response.Content.Headers.ContentType?.MediaType;
         JsonNode? parsed = null;
 
-        if (mediaType is null || mediaType.StartsWith("application/json", StringComparison.OrdinalIgnoreCase))
-        {
-            parsed = body.Length > 0 ? JsonNode.Parse(body) : null;
-        }
-        else
+        // TODO: Un-pack to array. Format response.
+        if (mediaType?.StartsWith("text/event-stream", StringComparison.OrdinalIgnoreCase) == true)
         {
             // SSE framing: each JSON-RPC message arrives as a 'data:' line; keep the last one carrying an 'id'.
             foreach (var line in body.Split('\n'))
@@ -156,16 +153,9 @@ public class TestContext
                 if (payload.Length == 0)
                     continue;
 
-                try
-                {
-                    var candidate = JsonNode.Parse(payload);
-                    if (candidate?["id"] is not null)
-                        parsed = candidate;
-                }
-                catch (JsonException)
-                {
-                    // Non-JSON SSE frames (e.g. keep-alive comments) are ignored.
-                }
+                var candidate = JsonNode.Parse(payload);
+                if (candidate?["id"] is not null)
+                    parsed = candidate;
             }
         }
 
