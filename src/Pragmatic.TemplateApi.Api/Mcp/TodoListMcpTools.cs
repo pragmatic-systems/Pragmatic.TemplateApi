@@ -1,13 +1,14 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Security.Claims;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using ModelContextProtocol.Server;
 using Pragmatic.CQRS;
 using Pragmatic.TemplateApi.Core.Handlers;
+using Pragmatic.TemplateApi.Database.Model;
 using Pragmatic.TemplateApi.Instrumentation;
 
 namespace Pragmatic.TemplateApi.Api.Mcp;
@@ -19,8 +20,6 @@ namespace Pragmatic.TemplateApi.Api.Mcp;
 /// </summary>
 public sealed class TodoListMcpTools
 {
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
-
     private readonly IMediator _mediator;
 
     public TodoListMcpTools(IMediator mediator)
@@ -30,17 +29,15 @@ public sealed class TodoListMcpTools
 
     [Description("Lists all open todo items from the Todo List API.")]
     [McpServerTool(Name = "list_open_todos", ReadOnly = true, Idempotent = true)]
-    public async Task<string> ListOpenTodos(IAuthorizationService authorization, ClaimsPrincipal user, CancellationToken cancellationToken)
+    public async Task<IEnumerable<TodoRecord>> ListOpenTodos(IAuthorizationService authorization, ClaimsPrincipal user, CancellationToken cancellationToken)
     {
         await AuthorizeAsync(authorization, user, Roles.TodoListRead);
-
-        var items = await _mediator.Send(new SelectTodo(), cancellationToken);
-        return JsonSerializer.Serialize(items, JsonOptions);
+        return await _mediator.Send(new SelectTodo(), cancellationToken);
     }
 
     [Description("Adds a new todo item with a title, an optional description and a due date (ISO-8601; stored as UTC).")]
     [McpServerTool(Name = "add_todo")]
-    public async Task<string> AddTodo(
+    public async Task<TodoRecord> AddTodo(
         string title,
         string? description,
         DateTime dueDate,
@@ -49,9 +46,7 @@ public sealed class TodoListMcpTools
         CancellationToken cancellationToken)
     {
         await AuthorizeAsync(authorization, user, Roles.TodoListWrite);
-
-        var record = await _mediator.Send(new InsertTodo(title, description, dueDate), cancellationToken);
-        return JsonSerializer.Serialize(record, JsonOptions);
+        return await _mediator.Send(new InsertTodo(title, description, dueDate), cancellationToken);
     }
 
     // Tools invoke the MediatR pipeline directly, bypassing the controller-level [Authorize] policies,
