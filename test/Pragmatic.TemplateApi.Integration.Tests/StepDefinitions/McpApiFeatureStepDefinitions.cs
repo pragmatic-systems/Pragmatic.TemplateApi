@@ -107,9 +107,12 @@ public sealed class McpApiFeatureStepDefinitions
             name = toolName,
             arguments = new
             {
-                title,
-                description = $"{title} (added via MCP)",
-                dueDate = DateTime.Parse(dueDate),
+                insert = new
+                {
+                    title,
+                    description = $"{title} (added via MCP)",
+                    dueDate = DateTime.Parse(dueDate),
+                },
             },
         });
 

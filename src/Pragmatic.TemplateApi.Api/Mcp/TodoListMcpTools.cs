@@ -38,15 +38,13 @@ public sealed class TodoListMcpTools
     [Description("Adds a new todo item with a title, an optional description and a due date (ISO-8601; stored as UTC).")]
     [McpServerTool(Name = "add_todo")]
     public async Task<TodoRecord> AddTodo(
-        string title,
-        string? description,
-        DateTime dueDate,
+        [Description("The todo item to add.")] InsertTodo insert,
         IAuthorizationService authorization,
         ClaimsPrincipal user,
         CancellationToken cancellationToken)
     {
         await AuthorizeAsync(authorization, user, Roles.TodoListWrite);
-        return await _mediator.Send(new InsertTodo(title, description, dueDate), cancellationToken);
+        return await _mediator.Send(insert, cancellationToken);
     }
 
     // Tools invoke the MediatR pipeline directly, bypassing the controller-level [Authorize] policies,
