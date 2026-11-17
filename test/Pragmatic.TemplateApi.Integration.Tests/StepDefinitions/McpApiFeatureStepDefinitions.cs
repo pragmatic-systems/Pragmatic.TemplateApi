@@ -1,6 +1,7 @@
 ﻿using System.Net;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Pragmatic.TemplateApi.Core.Handlers;
 using Pragmatic.TemplateApi.Database.Model;
 using Pragmatic.TemplateApi.Integration.Tests.Infrastructure;
 using Reqnroll;
@@ -107,13 +108,8 @@ public sealed class McpApiFeatureStepDefinitions
             name = toolName,
             arguments = new
             {
-                insert = new
-                {
-                    title,
-                    description = $"{title} (added via MCP)",
-                    dueDate = DateTime.Parse(dueDate),
-                },
-            },
+                insert = new InsertTodo(title, $"{title} (added via MCP)", DateTime.Parse(dueDate))
+            }
         });
 
         await _testContext.ParseMcpResponseAsync();
