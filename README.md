@@ -42,7 +42,7 @@ To Create a project:
   - [Keycloak (pre-configured)](#keycloak-pre-configured)
   - [Keycloak – Generate JWT](#keycloak--generate-jwt)
   - [Keycloak – Validate JWT](#keycloak--validate-jwt)
-- [Connecting from an Agent Container](#connecting-from-an-agent-container)
+- [Connecting an Agent to Development MCP](#connecting-an-agent-to-development-mcp)
 - [Azure Entra ID Config](#azure-entra-id-config)
   - [Entra ID – Generate JWT](#entra-id--generate-jwt)
   - [Entra ID – Validate JWT](#entra-id--validate-jwt)
@@ -178,28 +178,35 @@ For the configuration in your dotnet application, you will need:
 Issuer: `https://localhost:8443/realms/todolist`
 Audience: `todolist-client`
 
-## Connecting from an Agent Container
+## Connecting an Agent to Development MCP
 
-For agent tooling (e.g. Pi) running in a Docker container on this machine to call the developer server, the host is reached as `host.docker.internal` instead of `localhost`. Two things must hold: hostname validation and trust.
+**Optional — only needed if you want to test the Pi coding agent calling this API's MCP in local dev. Involves managing local certificates.**
 
-* **Hostname validation** — the `.NET` dev certificate (trusted via `dotnet dev-certs https --trust`) already lists `host.docker.internal` among its Subject Alternative Names, so `https://host.docker.internal:7160` validates without any special DNS or SNI tricks.
-* **Trust** — the dev certificate is self-signed and trusted on the host only. Export it into the repo so the container can use it as its CA:
+The API serves an MCP endpoint (`/mcp`) that authenticates via OAuth 2.1 / PKCE against the local Keycloak realm.
 
-    dotnet dev-certs https --export-path ssl/local.api.pem --format Pem
+For agent tooling to call a server running a self-signed certificate, we need to ensure that it is set on the node environment via `NODE_EXTRA_CA_CERTS` env var.
 
-* **Container side** — point the agent's TLS trust at the exported certificate:
+Both the `dev-certs` and `keycloak` certificates are self-signed on the local host and need to be supplied in a PEM format.
 
-    export NODE_EXTRA_CA_CERTS=/path/to/repo/ssl/local.api.pem    # Node-based agents (Pi)
-    curl --cacert /path/to/repo/ssl/local.api.pem https://host.docker.internal:7160/_system/Ping
+`NODE_EXTRA_CA_CERTS` only accepts a single argument, so the certs need to be bundled into a single file.
 
-  The PEM format matters: `NODE_EXTRA_CA_CERTS` and `curl --cacert` expect PEM, while `--export-path` defaults to a binary format — hence `--format Pem`. For the token leg against local Keycloak, the certificate ships in this repo: use `--cacert ssl/local.keycloak.crt` (see [Keycloak – Generate JWT](#keycloak--generate-jwt)).
+Prerequisites: docker infra up (`docker compose -f docker-compose.infra.yml up -d`), the API running, and `ssl/local.keycloak.crt` present (see [Local Keycloak Hosting](#local-keycloak-hosting)).
 
-* **MCP endpoint** — the API exposes `list_open_todos` and `add_todo` at `/mcp` (streamable HTTP, JWT bearer). Once `TODO_TOKEN` holds a JWT from the Keycloak flow above:
+### Instructions
 
-    pi mcp add todolist --url https://host.docker.internal:7160/mcp --bearer-token-env-var TODO_TOKEN
-    pi mcp list
+Run the following pi mcp registration script:
 
-> **Note:** if you ever rotate the dev certificate (`dotnet dev-certs https`), re-run the export — the container keeps trusting the previously exported copy.
+```bash
+
+pi mcp add todolist --url https://localhost:7160/mcp \
+  --oauth-client-id mcp-pi --oauth-callback-port 8765 \
+  --description "Todo List API: list_open_todos and add_todo (Keycloak roles TodoList:Read/Write)."
+
+```
+
+**Warning - Always check third party scripts before executing**
+
+Launch the mcp enabled pi script from project root: `.\scripts\start-mcp-pi.ps1`, login via the auth flow, and the tools are available as `mcp__todolist__list_open_todos` and `mcp__todolist__add_todo`.
 
 ## Azure Entra ID Config
 
