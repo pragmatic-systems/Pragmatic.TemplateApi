@@ -42,6 +42,7 @@ To Create a project:
   - [Keycloak (pre-configured)](#keycloak-pre-configured)
   - [Keycloak – Generate JWT](#keycloak--generate-jwt)
   - [Keycloak – Validate JWT](#keycloak--validate-jwt)
+- [Connecting from an Agent Container](#connecting-from-an-agent-container)
 - [Azure Entra ID Config](#azure-entra-id-config)
   - [Entra ID – Generate JWT](#entra-id--generate-jwt)
   - [Entra ID – Validate JWT](#entra-id--validate-jwt)
@@ -176,6 +177,29 @@ For the configuration in your dotnet application, you will need:
 
 Issuer: `https://localhost:8443/realms/todolist`
 Audience: `todolist-client`
+
+## Connecting from an Agent Container
+
+For agent tooling (e.g. Pi) running in a Docker container on this machine to call the developer server, the host is reached as `host.docker.internal` instead of `localhost`. Two things must hold: hostname validation and trust.
+
+* **Hostname validation** — the `.NET` dev certificate (trusted via `dotnet dev-certs https --trust`) already lists `host.docker.internal` among its Subject Alternative Names, so `https://host.docker.internal:7160` validates without any special DNS or SNI tricks.
+* **Trust** — the dev certificate is self-signed and trusted on the host only. Export it into the repo so the container can use it as its CA:
+
+    dotnet dev-certs https --export-path ssl/local.api.pem --format Pem
+
+* **Container side** — point the agent's TLS trust at the exported certificate:
+
+    export NODE_EXTRA_CA_CERTS=/path/to/repo/ssl/local.api.pem    # Node-based agents (Pi)
+    curl --cacert /path/to/repo/ssl/local.api.pem https://host.docker.internal:7160/_system/Ping
+
+  The PEM format matters: `NODE_EXTRA_CA_CERTS` and `curl --cacert` expect PEM, while `--export-path` defaults to a binary format — hence `--format Pem`. For the token leg against local Keycloak, the certificate ships in this repo: use `--cacert ssl/local.keycloak.crt` (see [Keycloak – Generate JWT](#keycloak--generate-jwt)).
+
+* **MCP endpoint** — the API exposes `list_open_todos` and `add_todo` at `/mcp` (streamable HTTP, JWT bearer). Once `TODO_TOKEN` holds a JWT from the Keycloak flow above:
+
+    pi mcp add todolist --url https://host.docker.internal:7160/mcp --bearer-token-env-var TODO_TOKEN
+    pi mcp list
+
+> **Note:** if you ever rotate the dev certificate (`dotnet dev-certs https`), re-run the export — the container keeps trusting the previously exported copy.
 
 ## Azure Entra ID Config
 

@@ -49,6 +49,7 @@ public class Program
             app.UseHangfireDashboard();
             app.MapControllers();
             app.ConfigureMcp();
+            app.ConfigureMcpOAuth(builder.Configuration);
 
             Log.Logger.Information("Starting Application");
 

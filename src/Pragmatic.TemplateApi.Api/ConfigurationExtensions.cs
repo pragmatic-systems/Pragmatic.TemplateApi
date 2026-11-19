@@ -134,6 +134,16 @@ public static class ConfigurationExtensions
                     {
                         context.HandleResponse();
                         context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+
+                        // MCP OAuth discovery (RFC 9728): unauthenticated MCP clients must be
+                        // pointed at the protected resource metadata so they can find the
+                        // authorization server and complete OAuth 2.1 / PKCE.
+                        if (context.Request.Path.StartsWithSegments("/mcp"))
+                        {
+                            var metadata = $"{context.Request.Scheme}://{context.Request.Host}/mcp/.well-known/oauth-protected-resource";
+                            context.Response.Headers["WWW-Authenticate"] = $"Bearer resource_metadata=\"{metadata}\"";
+                        }
+
                         return Task.CompletedTask;
                     },
                     OnForbidden = context =>
@@ -164,6 +174,29 @@ public static class ConfigurationExtensions
         // The MCP endpoint sits behind the same Cognito JWT authentication as the REST API;
         // per-tool role policies are enforced inside the tool implementations.
         app.MapMcp("/mcp").RequireAuthorization();
+
+        return app;
+    }
+
+    public static WebApplication ConfigureMcpOAuth(this WebApplication app, IConfiguration configuration)
+    {
+        // RFC 9728 protected resource metadata for MCP clients (e.g. Pi's built-in OAuth
+        // sign-in). The authorization server is configured explicitly because Keycloak pins
+        // its issuer to a single frontend hostname (KC_HOSTNAME); it must be a URL reachable
+        // from wherever the MCP client runs. Discovered via the WWW-Authenticate header
+        // emitted on 401 by the JWT bearer challenge (see WithOpenIdConnect).
+        //
+        // NOTE: `resource` must be the singular RFC 9728 field (a canonical URI string). Strict
+        // MCP client parsers reject the document otherwise and silently fall back to treating
+        // this API as the authorization server (redirecting to /authorize on the API itself).
+        var authorizationServer = configuration["Mcp:AuthorizationServer"]
+            ?? throw new InvalidOperationException("Mcp:AuthorizationServer is required to serve MCP OAuth discovery metadata.");
+
+        app.MapGet("/mcp/.well-known/oauth-protected-resource", (HttpRequest request) => Results.Json(new
+        {
+            resource = $"{request.Scheme}://{request.Host}/mcp",
+            authorization_servers = new[] { authorizationServer },
+        }));
 
         return app;
     }

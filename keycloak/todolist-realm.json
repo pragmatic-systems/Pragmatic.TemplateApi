@@ -6,6 +6,9 @@
   "attributes": {
     "unmanaged-permission.enabled": "true"
   },
+  "defaultDefaultClientScopes": [
+    "todolist-client-dedicated"
+  ],
   "clients": [
     {
       "clientId": "todolist-client",
@@ -26,6 +29,37 @@
         "email",
         "roles",
         "todolist-client-dedicated"
+      ]
+    },
+    {
+      "clientId": "mcp-pi",
+      "name": "Pi MCP client (OAuth 2.1 / PKCE)",
+      "description": "Public client for Pi's built-in MCP OAuth sign-in. Code flow + PKCE + refresh tokens; loopback redirect.",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "redirectUris": [
+        "http://127.0.0.1:8765/callback"
+      ],
+      "webOrigins": [
+        "+"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "+"
+      },
+      "defaultClientScopes": [
+        "web-origins",
+        "profile",
+        "email",
+        "roles",
+        "todolist-client-dedicated"
+      ],
+      "optionalClientScopes": [
+        "offline_access"
       ]
     }
   ],
