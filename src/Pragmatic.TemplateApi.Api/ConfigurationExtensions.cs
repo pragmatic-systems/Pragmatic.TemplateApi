@@ -69,8 +69,8 @@ public static class ConfigurationExtensions
                 };
 
                 options.ServerInstructions =
-                    "MCP server for the Pragmatic Template API. Tools mirror the Todo List REST endpoints. " +
-                    "A Cognito JWT with the matching role claim is required: 'TodoList:Read' to list, 'TodoList:Write' to add.";
+                    "MCP server for the API. Tools mirror the sample REST endpoints. " +
+                    "A JWT with the matching role claim is required: 'TodoList:Read' to list, 'TodoList:Write' to add.";
             })
             .WithHttpTransport(options => options.Stateless = true)
             .WithTools<TodoListMcpTools>();
@@ -171,7 +171,7 @@ public static class ConfigurationExtensions
 
     public static WebApplication ConfigureMcp(this WebApplication app)
     {
-        // The MCP endpoint sits behind the same Cognito JWT authentication as the REST API;
+        // The MCP endpoint sits behind the same JWT authentication as the REST API;
         // per-tool role policies are enforced inside the tool implementations.
         app.MapMcp("/mcp").RequireAuthorization();
 
