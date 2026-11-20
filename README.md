@@ -42,6 +42,7 @@ To Create a project:
   - [Keycloak (pre-configured)](#keycloak-pre-configured)
   - [Keycloak – Generate JWT](#keycloak--generate-jwt)
   - [Keycloak – Validate JWT](#keycloak--validate-jwt)
+- [Connecting an Agent to Development MCP](#connecting-an-agent-to-development-mcp)
 - [Azure Entra ID Config](#azure-entra-id-config)
   - [Entra ID – Generate JWT](#entra-id--generate-jwt)
   - [Entra ID – Validate JWT](#entra-id--validate-jwt)
@@ -59,16 +60,16 @@ This solution contains a simple Todo List API with background Workerhost, a post
 * `/_system/Ping`, `/_system/Health`, and `/_system/Metrics` endpoints for service observability.
 * One-shot provisioning tool (`Pragmatic.TemplateApi.Provisioning`) for the database schema, Hangfire tables and S3 bucket.
 * Unit Tests, Integration Tests and Benchmarks with packaged reports.
-* Test Server / Test Container based test suite with Specflow.
+* Test Server / Test Container based test suite with Reqnroll.
 
 ### Prerequisites
 
 | Requirement | Version | Notes |
 |-------------|---------|-------|
-| **.NET SDK** | 8.0.401+ (rollForward: latestMinor) | [Download](https://dotnet.microsoft.com/download) |
+| **.NET SDK** | 10.0.100+ (rollForward: latestMinor) | [Download](https://dotnet.microsoft.com/download) |
 | **Docker Desktop** | Latest stable | Required for `docker compose` and all local services |
 | **Git** | Latest | Required for cloning and versioning |
-| **Cake CLI** | 4.x | `dotnet tool install --global Cake.Tool` — used for the build pipeline |
+| **Cake CLI** | 6.x | `dotnet tool install --global Cake.Tool` — used for the build pipeline |
 
 ### To Run
 
@@ -176,6 +177,36 @@ For the configuration in your dotnet application, you will need:
 
 Issuer: `https://localhost:8443/realms/todolist`
 Audience: `todolist-client`
+
+## Connecting an Agent to Development MCP
+
+**Optional — only needed if you want to test the Pi coding agent calling this API's MCP in local dev. Involves managing local certificates.**
+
+The API serves an MCP endpoint (`/mcp`) that authenticates via OAuth 2.1 / PKCE against the local Keycloak realm.
+
+For agent tooling to call a server running a self-signed certificate, we need to ensure that it is set on the node environment via `NODE_EXTRA_CA_CERTS` env var.
+
+Both the `dev-certs` and `keycloak` certificates are self-signed on the local host and need to be supplied in a PEM format.
+
+`NODE_EXTRA_CA_CERTS` only accepts a single argument, so the certs need to be bundled into a single file.
+
+Prerequisites: docker infra up (`docker compose -f docker-compose.infra.yml up -d`), the API running, and `ssl/local.keycloak.crt` present (see [Local Keycloak Hosting](#local-keycloak-hosting)).
+
+### Instructions
+
+Run the following pi mcp registration script:
+
+```bash
+
+pi mcp add todolist --url https://localhost:7160/mcp \
+  --oauth-client-id mcp-pi --oauth-callback-port 8765 \
+  --description "Todo List API: list_open_todos and add_todo (Keycloak roles TodoList:Read/Write)."
+
+```
+
+**Warning - Always check third party scripts before executing**
+
+Launch the mcp enabled pi script from project root: `.\scripts\start-mcp-pi.ps1`, login via the auth flow, and the tools are available as `mcp__todolist__list_open_todos` and `mcp__todolist__add_todo`.
 
 ## Azure Entra ID Config
 

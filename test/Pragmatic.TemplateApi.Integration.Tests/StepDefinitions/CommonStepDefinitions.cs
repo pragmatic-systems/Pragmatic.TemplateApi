@@ -37,15 +37,11 @@ public class CommonStepDefinitions
         _testContext.LastResponse.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
 
-    [Given("We have user '(.*)'")]
-    public void WeHaveUser(string userName)
+    [Given("We have user '(.*)' with claims '(.*)'")]
+    public void WeHaveUserWithClaims(string userName, string claimSetName)
     {
         _testContext.AddUser(userName);
-    }
 
-    [Given("User '(.*)' has claims '(.*)'")]
-    public void UserHasClaims(string userName, string claimSetName)
-    {
         var claims = new List<Claim>();
 
         if (claimSetName == "Read")

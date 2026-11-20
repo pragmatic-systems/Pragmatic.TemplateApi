@@ -5,7 +5,7 @@ meta {
 }
 
 post {
-  url: https://localhost:8443/realms/todolist/protocol/openid-connect/token
+  url: {{hangfire_url}}/realms/todolist/protocol/openid-connect/token
   body: formUrlEncoded
   auth: none
 }

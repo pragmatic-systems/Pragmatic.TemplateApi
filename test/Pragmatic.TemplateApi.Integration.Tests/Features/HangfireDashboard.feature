@@ -4,8 +4,7 @@ End-to-end test for Hangfire dashboard cookie-based authentication flow.
 
 @hangfire @api
 Scenario: Login with bearer token, access dashboard with cookie, then logout
-	Given We have user 'HangfireAdmin'
-	And User 'HangfireAdmin' has claims 'HangfireDashboard'
+	Given We have user 'HangfireAdmin' with claims 'HangfireDashboard'
 	When We are connecting as 'HangfireAdmin'
 	And We call hangfire login with bearer token
 	Then The response should redirect to hangfire dashboard
