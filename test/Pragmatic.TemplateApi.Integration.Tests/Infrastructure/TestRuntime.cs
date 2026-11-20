@@ -42,7 +42,7 @@ public class TestRuntime : IAsyncDisposable
     /// </summary>
     public PemCertificate? SigningCertificate { get; private set; }
 
-    public string? JwtIssuer { get; private set; }
+    public string? AuthServer { get; private set; }
 
     public WebApplicationFactory<Api.Program> GetSubjectApi()
         => SubjectApi ?? throw new InvalidOperationException(
@@ -56,8 +56,8 @@ public class TestRuntime : IAsyncDisposable
         => SubjectWorker ?? throw new InvalidOperationException(
             "TestRuntime has not been initialized. Call InitializeAsync() before using the subject worker.");
 
-    public string GetJwtIssuer()
-        => JwtIssuer ?? throw new InvalidOperationException(
+    public string GetAuthServer()
+        => AuthServer ?? throw new InvalidOperationException(
             "TestRuntime has not been initialized. Call InitializeAsync() before getting JwtIssuer.");
 
     public PemCertificate GetSigningCertificate()
@@ -141,7 +141,7 @@ public class TestRuntime : IAsyncDisposable
 
         // Get JWT Issuer
         var jwtIssuer = wireMockContainer.GetPublicUrl().TrimEnd('/');
-        JwtIssuer = jwtIssuer;
+        AuthServer = jwtIssuer;
 
         SubjectApi = ConfigureSubjectApi(postgresContainer, rustFsContainer);
         SubjectWorker = ConfigureSubjectWorker(postgresContainer, rustFsContainer);
@@ -175,7 +175,10 @@ public class TestRuntime : IAsyncDisposable
 
                         // OIDC
                         { "OpenIdConnect:Audience", TestConstants.Audience },
-                        { "OpenIdConnect:Issuer", JwtIssuer },
+                        { "OpenIdConnect:Issuer", AuthServer },
+
+                        // MCP Auth
+                        { "Mcp:AuthorizationServer", AuthServer },
 
                         // S3 object storage (RustFS)
                         { "Storage:Endpoint", $"http://{rustFsContainer.Hostname}:{rustFsContainer.GetMappedPublicPort(9000)}" },
@@ -191,7 +194,7 @@ public class TestRuntime : IAsyncDisposable
                 builder.ConfigureTestServices(services =>
                 {
                     var config = MockOpenIdConfigurationManagerBuilder.Create(
-                        GetJwtIssuer(),
+                        GetAuthServer(),
                         TestConstants.OpenIdConfigUrl,
                         GetSigningCertificate());
 
